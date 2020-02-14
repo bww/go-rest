@@ -23,7 +23,7 @@ type Service struct {
 	debug   bool
 }
 
-func New(l *logrus.Logger, opts ...Option) (*Service, error) {
+func New(opts ...Option) (*Service, error) {
 	s := &Service{
 		Router: router.New(),
 	}
