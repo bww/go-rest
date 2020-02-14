@@ -34,6 +34,9 @@ func New(l *logrus.Logger, opts ...Option) (*Service, error) {
 			return nil, err
 		}
 	}
+	if s.log == nil {
+		s.log = logrus.StandardLogger()
+	}
 	return s, nil
 }
 

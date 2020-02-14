@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/bww/go-rest/v1/errors"
-
 	"github.com/bww/go-router/v1"
 	"github.com/gorilla/schema"
 )
@@ -53,4 +51,5 @@ func Unmarshal(req *router.Request, entity interface{}) error {
 		return ErrUnsupportedMimetype
 
 	}
+	return nil
 }
