@@ -12,7 +12,7 @@ import (
 	"github.com/bww/go-rest/v1/errors"
 
 	"github.com/bww/go-router/v1"
-	"github.com/bww/go-util/text"
+	"github.com/bww/go-util/v1/text"
 	"github.com/sirupsen/logrus"
 )
 
