@@ -23,16 +23,32 @@ type Error struct {
 func New(s int, m string, c error) *Error {
 	return &Error{
 		Status:  s,
-		Code:    "",
 		Message: m,
 		Cause:   c,
+	}
+}
+
+// Conditionally wrap the parameter error in a REST Error. If the
+// parameter error is already a REST Error, it is simply returned.
+// Otherwise, a new REST Error is created with the provided status,
+// message and the parameter as the cause.
+//
+// This is intended to be used in cases where the caller receives
+// an error that may or may not be a REST Error and needs to report
+// the result to the REST client. If the error is already a REST
+// Error, that error should be reported, and if not, the underlying
+// error should be wrapped in a more generic error.
+func Wrap(s int, m string, e error) *Error {
+	if c, ok := e.(*Error); ok {
+		return c // the parameter is already an Error, just return it
+	} else {
+		return New(s, m, e)
 	}
 }
 
 func Errorf(s int, f string, a ...interface{}) *Error {
 	return &Error{
 		Status:  s,
-		Code:    "",
 		Message: fmt.Sprintf(f, a...),
 	}
 }
