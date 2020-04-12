@@ -2,6 +2,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/aws/aws-lambda-go v1.14.0/go.mod h1:4UKl9IzQMoD+QF79YdCuzCwp8VbmG4VAQwij/eHl5CU=
 github.com/bww/epl v0.0.0-20190416152753-b1c8662fdd65 h1:wkeL+8byOqV0+7HqYiYRi+6Ns/0XZ4i1hZn5FThWjc0=
 github.com/bww/epl v0.0.0-20190416152753-b1c8662fdd65/go.mod h1:8CahovY2O3KqBUPSfiQzaSaNd6Bkn+SJH7L98/76vaI=
+github.com/bww/epl v1.0.0 h1:ND38rp+wL7VjbPx39vTOqTNzCBmCgw2eCZe1+l5Hiu8=
+github.com/bww/epl v1.0.0/go.mod h1:8CahovY2O3KqBUPSfiQzaSaNd6Bkn+SJH7L98/76vaI=
 github.com/bww/go-alert v0.0.0-20180325011200-72270072a7e5/go.mod h1:tsrgzda5iuNbbbVRTPaUnXpHwh0qiWg//Xr7lSLV5X8=
 github.com/bww/go-router v1.0.0 h1:35Jvlogui9TSXXPws2Zt8u1mFP25HoIg03g4RoBXJaM=
 github.com/bww/go-router v1.0.0/go.mod h1:lP+Pg41Tkkxz29JwpgBiSocoCNQLMVxj5hevMb0B6k0=
@@ -11,6 +13,8 @@ github.com/bww/go-util v1.0.0 h1:/BqCKDms3waQhmEZyf1jXmr8RLoqgA3nQSMjPNAZkaY=
 github.com/bww/go-util v1.0.0/go.mod h1:eetI2LVCZPc50RTF1gSbNonGRWlT7UARNoILqCW2on8=
 github.com/bww/go-validate v0.0.0-20190416153435-22eef4200ee9 h1:PKxl7jlOEAy5v+hvtVZ8jXwsrBjry+y3yqOXL2yX6dk=
 github.com/bww/go-validate v0.0.0-20190416153435-22eef4200ee9/go.mod h1:fyPUu5SSvBc02GFW54uAWRRLGjINYTW7VGYD9QWt88w=
+github.com/bww/go-validate v1.0.0 h1:f6uL32bp3cZoEoGy0zfProkorInAUqZAO9gR5SHi0WQ=
+github.com/bww/go-validate v1.0.0/go.mod h1:lvhWzQA/tgYTbyS7QSWVRX5B6t0RW2gKWJBNR7GK1II=
 github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

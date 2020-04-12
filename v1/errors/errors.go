@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/bww/go-router/v1"
-	"github.com/bww/go-validate"
+	"github.com/bww/go-validate/v1"
 )
 
 const fieldErrorsKey = "field_errors"
