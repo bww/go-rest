@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"github.com/bww/go-metrics/v1"
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,6 +24,13 @@ func WithDebug(on bool) Option {
 func WithLogger(l *logrus.Logger) Option {
 	return func(s *Service) (*Service, error) {
 		s.log = l
+		return s, nil
+	}
+}
+
+func WithMetrics(m *metrics.Metrics) Option {
+	return func(s *Service) (*Service, error) {
+		s.metrics = m
 		return s, nil
 	}
 }

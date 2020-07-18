@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"net/url"
 	"runtime/debug"
+	"time"
 
 	"github.com/bww/go-rest/v1/errors"
 
+	"github.com/bww/go-metrics/v1"
 	"github.com/bww/go-router/v1"
 	"github.com/bww/go-util/v1/text"
 	"github.com/sirupsen/logrus"
@@ -21,6 +23,9 @@ type Service struct {
 	log     *logrus.Logger
 	verbose bool
 	debug   bool
+
+	metrics         *metrics.Metrics
+	requestDuration metrics.Gauge
 }
 
 func New(opts ...Option) (*Service, error) {
@@ -37,11 +42,18 @@ func New(opts ...Option) (*Service, error) {
 	if s.log == nil {
 		s.log = logrus.StandardLogger()
 	}
+	if s.metrics != nil {
+		s.requestDuration = s.metrics.RegisterGauge("rest_request_duration", "Request duration")
+	}
 	return s, nil
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	start := time.Now()
 	defer func() {
+		if s.requestDuration != nil {
+			s.requestDuration.Set(float64(time.Since(start)))
+		}
 		if err := recover(); err != nil {
 			s.log.WithFields(logrus.Fields{"because": err}).Errorf("PANIC: %s\n", resource((*router.Request)(req)))
 			fmt.Println(string(debug.Stack()))
