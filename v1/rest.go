@@ -25,7 +25,8 @@ type Service struct {
 	debug   bool
 
 	metrics         *metrics.Metrics
-	requestDuration metrics.Gauge
+	requestCount    metrics.CounterVec
+	requestDuration metrics.GaugeVec
 }
 
 func New(opts ...Option) (*Service, error) {
@@ -43,20 +44,30 @@ func New(opts ...Option) (*Service, error) {
 		s.log = logrus.StandardLogger()
 	}
 	if s.metrics != nil {
-		s.requestDuration = s.metrics.RegisterGauge("rest_request_duration", "Request duration", nil)
+		s.requestCount = s.metrics.RegisterCounterVec("rest_request_count", "Request count", []string{"status"})
+		s.requestDuration = s.metrics.RegisterGaugeVec("rest_request_duration", "Request duration", []string{"status"})
 	}
 	return s, nil
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var rsp *router.Response
+	var err error
+
 	start := time.Now()
 	defer func() {
-		if s.requestDuration != nil {
-			s.requestDuration.Set(float64(time.Since(start)))
-		}
 		if err := recover(); err != nil {
 			s.log.WithFields(logrus.Fields{"because": err}).Errorf("PANIC: %s\n", resource((*router.Request)(req)))
 			fmt.Println(string(debug.Stack()))
+			return
+		}
+		if rsp != nil {
+			if s.requestDuration != nil {
+				s.requestDuration.With(metrics.Tags{"status": fmt.Sprint(rsp.Status)}).Set(float64(time.Since(start)))
+			}
+			if s.requestCount != nil {
+				s.requestCount.With(metrics.Tags{"status": fmt.Sprint(rsp.Status)}).Inc()
+			}
 		}
 	}()
 
@@ -72,7 +83,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		req.Body = ioutil.NopCloser(data)
 	}
 
-	rsp, err := s.handle((*router.Request)(req))
+	rsp, err = s.handle((*router.Request)(req))
 	if err != nil {
 		s.log.Errorf("Handler failed: %v", err)
 		return
