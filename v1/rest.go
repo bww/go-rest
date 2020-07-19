@@ -43,7 +43,7 @@ func New(opts ...Option) (*Service, error) {
 		s.log = logrus.StandardLogger()
 	}
 	if s.metrics != nil {
-		s.requestDuration = s.metrics.RegisterGauge("rest_request_duration", "Request duration")
+		s.requestDuration = s.metrics.RegisterGauge("rest_request_duration", "Request duration", nil)
 	}
 	return s, nil
 }
