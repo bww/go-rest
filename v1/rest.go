@@ -25,7 +25,6 @@ type Service struct {
 	debug   bool
 
 	metrics        *metrics.Metrics
-	requestCount   metrics.CounterVec
 	requestSampler metrics.SamplerVec
 }
 
@@ -44,7 +43,6 @@ func New(opts ...Option) (*Service, error) {
 		s.log = logrus.StandardLogger()
 	}
 	if s.metrics != nil {
-		s.requestCount = s.metrics.RegisterCounterVec("rest_request_count", "Request count", []string{"status"})
 		s.requestSampler = s.metrics.RegisterSamplerVec("rest_request", "Request sampler", []string{"status"})
 	}
 	return s, nil
@@ -64,9 +62,6 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if rsp != nil {
 			if s.requestSampler != nil {
 				s.requestSampler.With(metrics.Tags{"status": fmt.Sprint(rsp.Status)}).Observe(float64(time.Since(start)))
-			}
-			if s.requestCount != nil {
-				s.requestCount.With(metrics.Tags{"status": fmt.Sprint(rsp.Status)}).Inc()
 			}
 		}
 	}()
