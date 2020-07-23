@@ -3,7 +3,7 @@ module github.com/bww/go-rest
 go 1.13
 
 require (
-	github.com/bww/go-metrics v0.0.3
+	github.com/bww/go-metrics v0.0.4
 	github.com/bww/go-router v1.0.0
 	github.com/bww/go-util v1.0.0
 	github.com/bww/go-validate v1.0.1
