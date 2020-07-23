@@ -45,7 +45,7 @@ func New(opts ...Option) (*Service, error) {
 	}
 	if s.metrics != nil {
 		s.requestCount = s.metrics.RegisterCounterVec("rest_request_count", "Request count", []string{"status"})
-		s.requestSampler = s.metrics.RegisterSamplerVec("rest_request_sampler", "Request sampler", []string{"status"})
+		s.requestSampler = s.metrics.RegisterSamplerVec("rest_request", "Request sampler", []string{"status"})
 	}
 	return s, nil
 }
