@@ -57,6 +57,10 @@ func (e Error) Error() string {
 	return e.Message
 }
 
+func (e Error) Unwrap() error {
+	return e.Cause
+}
+
 func (e Error) String() string {
 	return fmt.Sprintf("%d %s: %v", e.Status, http.StatusText(e.Status), e.Message)
 }
