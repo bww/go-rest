@@ -95,13 +95,15 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	w.WriteHeader(rsp.Status)
 	if s.debug {
-		fmt.Println(reqdump)
+		if reqdump != "" {
+			fmt.Println(reqdump)
+		}
 		fmt.Printf("  * %d / %s\n", rsp.Status, http.StatusText(rsp.Status))
 	}
 
 	if entity := rsp.Entity; entity != nil {
 		defer entity.Close()
-		if s.debug && !isMimetypeBinary(req.Header.Get("Content-Type")) {
+		if s.debug && !isMimetypeBinary(rsp.Header.Get("Content-Type")) {
 			data := &bytes.Buffer{}
 			_, err := io.Copy(data, entity)
 			if err != nil {
