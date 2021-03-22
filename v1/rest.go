@@ -113,7 +113,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 		_, err := io.Copy(w, entity)
 		if err != nil {
-			s.log.WithFields(logrus.Fields{"because": err}).Errorf("Could not write entity")
+			s.log.WithFields(logrus.Fields{"because": err}).Errorf("Could not write response entity")
 		}
 	}
 }
