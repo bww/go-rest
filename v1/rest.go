@@ -95,7 +95,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		h[k] = v
 	}
 	for _, e := range s.intercept {
-		rsp, err = e.Intercept(rsp)
+		rsp, err = e.Intercept((*router.Request)(req), rsp)
 		if err != nil {
 			s.log.Errorf("Interceptor failed: %v", err)
 			return

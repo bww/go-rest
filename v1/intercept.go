@@ -5,11 +5,11 @@ import (
 )
 
 type Interceptor interface {
-	Intercept(*router.Response) (*router.Response, error)
+	Intercept(*router.Request, *router.Response) (*router.Response, error)
 }
 
-type InterceptorFunc func(*router.Response) (*router.Response, error)
+type InterceptorFunc func(*router.Request, *router.Response) (*router.Response, error)
 
-func (f InterceptorFunc) Intercept(rsp *router.Response) (*router.Response, error) {
-	return f(rsp)
+func (f InterceptorFunc) Intercept(req *router.Request, rsp *router.Response) (*router.Response, error) {
+	return f(req, rsp)
 }
