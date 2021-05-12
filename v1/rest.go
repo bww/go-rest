@@ -20,9 +20,11 @@ import (
 
 type Service struct {
 	router.Router
-	log     *logrus.Logger
-	verbose bool
-	debug   bool
+
+	intercept []Interceptor
+	log       *logrus.Logger
+	verbose   bool
+	debug     bool
 
 	metrics        *metrics.Metrics
 	requestSampler metrics.SamplerVec
@@ -92,8 +94,16 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	for k, v := range rsp.Header {
 		h[k] = v
 	}
+	for _, e := range s.intercept {
+		rsp, err = e.Intercept((*router.Request)(req), rsp)
+		if err != nil {
+			s.log.Errorf("Interceptor failed: %v", err)
+			return
+		}
+	}
 
 	w.WriteHeader(rsp.Status)
+
 	if s.debug {
 		fmt.Println(reqdump)
 		fmt.Printf("  * %d / %s\n", rsp.Status, http.StatusText(rsp.Status))
