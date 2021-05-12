@@ -34,3 +34,10 @@ func WithMetrics(m *metrics.Metrics) Option {
 		return s, nil
 	}
 }
+
+func WithInterceptors(v []Interceptor) Option {
+	return func(s *Service) (*Service, error) {
+		s.intercept = v
+		return s, nil
+	}
+}
