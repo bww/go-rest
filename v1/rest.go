@@ -85,21 +85,21 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		s.log.Errorf("Handler failed: %v", err)
 		return
 	}
-	if rsp == nil {
-		w.WriteHeader(http.StatusOK) // no response is an empty 200
-		return
-	}
-
-	h := w.Header()
-	for k, v := range rsp.Header {
-		h[k] = v
-	}
 	for _, e := range s.intercept {
 		rsp, err = e.Intercept((*router.Request)(req), rsp)
 		if err != nil {
 			s.log.Errorf("Interceptor failed: %v", err)
 			return
 		}
+	}
+
+	if rsp == nil {
+		w.WriteHeader(http.StatusOK) // no response is an empty 200
+		return
+	}
+	h := w.Header()
+	for k, v := range rsp.Header {
+		h[k] = v
 	}
 
 	w.WriteHeader(rsp.Status)
