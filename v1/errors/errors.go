@@ -66,6 +66,9 @@ func (e Error) String() string {
 }
 
 func (e *Error) SetCause(c error) *Error {
+	if c == e {
+		panic("errors: Attempting to set error as its own cause; this will result in infinite recursion")
+	}
 	e.Cause = c
 	return e
 }
