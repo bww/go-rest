@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -29,9 +30,9 @@ func New(s int, m string, c error) *Error {
 }
 
 // Conditionally wrap the parameter error in a REST Error. If the
-// parameter error is already a REST Error, it is simply returned.
-// Otherwise, a new REST Error is created with the provided status,
-// message and the parameter as the cause.
+// parameter error can be unwrapped as a REST Error, that error is
+// simply returned. Otherwise, a new REST Error is created with the
+// provided status, message and the parameter as the cause.
 //
 // This is intended to be used in cases where the caller receives
 // an error that may or may not be a REST Error and needs to report
@@ -39,8 +40,9 @@ func New(s int, m string, c error) *Error {
 // Error, that error should be reported, and if not, the underlying
 // error should be wrapped in a more generic error.
 func Wrap(s int, m string, e error) *Error {
-	if c, ok := e.(*Error); ok {
-		return c // the parameter is already an Error, just return it
+	var resterr *Error
+	if errors.As(e, &resterr) {
+		return resterr // the parameter is already an Error, just return it
 	} else {
 		return New(s, m, e)
 	}
@@ -53,15 +55,20 @@ func Errorf(s int, f string, a ...interface{}) *Error {
 	}
 }
 
-func (e Error) Error() string {
+func (e *Error) Copy() *Error {
+	d := *e
+	return &d
+}
+
+func (e *Error) Error() string {
 	return e.Message
 }
 
-func (e Error) Unwrap() error {
+func (e *Error) Unwrap() error {
 	return e.Cause
 }
 
-func (e Error) String() string {
+func (e *Error) String() string {
 	return fmt.Sprintf("%d %s: %v", e.Status, http.StatusText(e.Status), e.Message)
 }
 
@@ -70,6 +77,11 @@ func (e *Error) SetCause(c error) *Error {
 		panic("errors: Attempting to set error as its own cause; this will result in infinite recursion")
 	}
 	e.Cause = c
+	return e
+}
+
+func (e *Error) SetStatus(v int) *Error {
+	e.Status = v
 	return e
 }
 
