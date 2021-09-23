@@ -80,13 +80,13 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		req.Body = ioutil.NopCloser(data)
 	}
 
-	rsp, err = s.handle((*router.Request)(req))
+	crq, rsp, err := s.handle((*router.Request)(req))
 	if err != nil {
 		s.log.Errorf("Handler failed: %v", err)
 		return
 	}
 	for _, e := range s.intercept {
-		rsp, err = e.Intercept((*router.Request)(req), rsp)
+		rsp, err = e.Intercept(crq, rsp)
 		if err != nil {
 			s.log.Errorf("Interceptor failed: %v", err)
 			return
@@ -128,14 +128,22 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *Service) handle(req *router.Request) (*router.Response, error) {
+func (s *Service) handle(req *router.Request) (*router.Request, *router.Response, error) {
 	if s.verbose {
 		s.log.Info(resource(req))
 	}
 
-	rsp, err := s.Router.Handle(req)
+	route, match, err := s.Router.Find(req)
+	if err != nil {
+		return req, nil, errors.Errorf(http.StatusInternalServerError, "Could not find route").SetCause(err)
+	} else if route == nil {
+		return req, nil, errors.Errorf(http.StatusNotFound, "Not found")
+	}
+
+	req = (*router.Request)((*http.Request)(req).WithContext(router.NewMatchContext(req.Context(), match)))
+	rsp, err := s.Router.HandleMatch(req, route, match)
 	if err == nil {
-		return rsp, nil
+		return req, rsp, nil
 	}
 
 	var cause error
@@ -154,9 +162,9 @@ func (s *Service) handle(req *router.Request) (*router.Response, error) {
 
 	elog.Errorf("%s: %v", resource(req), err)
 	if c, ok := err.(*errors.Error); ok {
-		return c.Response(), nil
+		return req, c.Response(), nil
 	} else {
-		return rsp, err
+		return req, rsp, err
 	}
 }
 
