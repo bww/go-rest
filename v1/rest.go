@@ -14,6 +14,7 @@ import (
 
 	"github.com/bww/go-metrics/v1"
 	"github.com/bww/go-router/v1"
+	"github.com/bww/go-router/v1/path"
 	"github.com/bww/go-util/v1/text"
 	"github.com/sirupsen/logrus"
 )
@@ -21,10 +22,10 @@ import (
 type Service struct {
 	router.Router
 
-	intercept []Interceptor
-	log       *logrus.Logger
-	verbose   bool
-	debug     bool
+	root    Handler
+	log     *logrus.Logger
+	verbose bool
+	debug   bool
 
 	metrics        *metrics.Metrics
 	requestSampler metrics.SamplerVec
@@ -80,15 +81,18 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		req.Body = ioutil.NopCloser(data)
 	}
 
-	crq, rsp, err := s.handle((*router.Request)(req))
+	route, match, err := s.Router.Find((*router.Request)(req))
 	if err != nil {
-		s.log.Errorf("Handler failed: %v", err)
-		return
-	}
-	for _, e := range s.intercept {
-		rsp, err = e.Intercept(crq, rsp)
+		s.log.WithFields(logrus.Fields{"because": err}).Error("Could not lookup route")
+		rsp = errors.Errorf(http.StatusInternalServerError, "Internal server error").Response()
+	} else if route == nil {
+		rsp = errors.Errorf(http.StatusNotFound, "Not found").Response()
+	} else {
+		req := (*router.Request)((*http.Request)(req).WithContext(router.NewMatchContext(req.Context(), match)))
+		cxt := route.Context(match)
+		rsp, err = s.root.Handle(req, cxt, s.handler(route))
 		if err != nil {
-			s.log.Errorf("Interceptor failed: %v", err)
+			s.log.WithFields(logrus.Fields{"because": err}).Error("Handler failed")
 			return
 		}
 	}
@@ -128,44 +132,41 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *Service) handle(req *router.Request) (*router.Request, *router.Response, error) {
-	if s.verbose {
-		s.log.Info(resource(req))
-	}
+func (s *Service) handler(route *router.Route) Handler {
+	return HandlerFunc(func(req *router.Request, cxt router.Context, next Handler) (*router.Response, error) {
+		if s.verbose {
+			s.log.Info(resource(req))
+		}
+		if next != nil {
+			return next.Handle(req, cxt, nil)
+		}
 
-	route, match, err := s.Router.Find(req)
-	if err != nil {
-		return req, nil, errors.Errorf(http.StatusInternalServerError, "Could not find route").SetCause(err)
-	} else if route == nil {
-		return req, nil, errors.Errorf(http.StatusNotFound, "Not found")
-	}
+		rsp, err := route.Handle(req, cxt)
+		if err == nil {
+			return rsp, nil
+		}
 
-	req = (*router.Request)((*http.Request)(req).WithContext(router.NewMatchContext(req.Context(), match)))
-	rsp, err := s.Router.HandleMatch(req, route, match)
-	if err == nil {
-		return req, rsp, nil
-	}
+		var cause error
+		if c, ok := err.(*errors.Error); ok {
+			cause = c.Cause
+		}
 
-	var cause error
-	if c, ok := err.(*errors.Error); ok {
-		cause = c.Cause
-	}
+		var elog *logrus.Entry
+		if cause == nil {
+			elog = s.log.WithFields(logrus.Fields{})
+		} else {
+			elog = s.log.WithFields(logrus.Fields{
+				"because": cause.Error(),
+			})
+		}
 
-	var elog *logrus.Entry
-	if cause == nil {
-		elog = s.log.WithFields(logrus.Fields{})
-	} else {
-		elog = s.log.WithFields(logrus.Fields{
-			"because": cause.Error(),
-		})
-	}
-
-	elog.Errorf("%s: %v", resource(req), err)
-	if c, ok := err.(*errors.Error); ok {
-		return req, c.Response(), nil
-	} else {
-		return req, rsp, err
-	}
+		elog.Errorf("%s: %v", resource(req), err)
+		if c, ok := err.(*errors.Error); ok {
+			return c.Response(), nil
+		} else {
+			return rsp, err
+		}
+	})
 }
 
 // Format a resource name
@@ -187,4 +188,12 @@ func resource(req *router.Request) string {
 		r += fmt.Sprintf("?%s", p)
 	}
 	return r
+}
+
+func ensureVars(v path.Vars) path.Vars {
+	if v != nil {
+		return v
+	} else {
+		return make(path.Vars)
+	}
 }

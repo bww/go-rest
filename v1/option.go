@@ -35,9 +35,9 @@ func WithMetrics(m *metrics.Metrics) Option {
 	}
 }
 
-func WithInterceptors(v []Interceptor) Option {
+func WithHandler(v Handler) Option {
 	return func(s *Service) (*Service, error) {
-		s.intercept = v
+		s.root = v
 		return s, nil
 	}
 }
