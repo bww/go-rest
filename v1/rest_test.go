@@ -1,0 +1,158 @@
+package rest
+
+import (
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/bww/go-router/v1"
+	"github.com/stretchr/testify/assert"
+)
+
+func mustGet(s string) *http.Request {
+	req, err := http.NewRequest("GET", s, nil)
+	if err != nil {
+		panic(err)
+	}
+	return req
+}
+
+func mustNewResponse(s int, m, e string) *router.Response {
+	r, err := router.NewResponse(s).SetString(m, e)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
+func readAll(v io.Reader) string {
+	data, err := io.ReadAll(v)
+	if err != nil {
+		panic(err)
+	}
+	return string(data)
+}
+
+func TestService(t *testing.T) {
+	handlerA := HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
+		rsp, err := next.Handle(req, cxt)
+		rsp.Header.Add("X-Handler-A", "1")
+		return rsp, err
+	})
+	handlerB := HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
+		rsp, err := next.Handle(req, cxt)
+		rsp.Header.Add("X-Handler-B", "1")
+		return rsp, err
+	})
+
+	funcA := func(*router.Request, router.Context) (*router.Response, error) {
+		return router.NewResponse(http.StatusOK).SetString("text/plain", "A")
+	}
+	funcB := func(*router.Request, router.Context) (*router.Response, error) {
+		return router.NewResponse(http.StatusOK).SetString("text/plain", "B")
+	}
+
+	s, _ := New(
+		WithHandlers(handlerA, handlerB),
+		WithVerbose(true),
+		WithDebug(true),
+	)
+	s.Add("/a", funcA).Methods("GET")
+	s.Add("/b", funcB).Methods("GET")
+
+	tests := []struct {
+		Req *http.Request
+		Rsp *router.Response
+	}{
+		{
+			mustGet("/a"),
+			mustNewResponse(http.StatusOK, "text/plain", "A").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
+		},
+		{
+			mustGet("/b"),
+			mustNewResponse(http.StatusOK, "text/plain", "B").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
+		},
+	}
+
+	for _, e := range tests {
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, e.Req)
+		rsp := rec.Result()
+		assert.Equal(t, e.Rsp.Status, rsp.StatusCode)
+		assert.Equal(t, e.Rsp.Header, rsp.Header)
+		assert.Equal(t, readAll(e.Rsp.Entity), readAll(rsp.Body))
+	}
+}
+
+func BenchmarkService(b *testing.B) {
+	handlerA := HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
+		rsp, err := next.Handle(req, cxt)
+		rsp.Header.Add("X-Handler-A", "1")
+		return rsp, err
+	})
+	handlerB := HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
+		rsp, err := next.Handle(req, cxt)
+		rsp.Header.Add("X-Handler-B", "1")
+		return rsp, err
+	})
+
+	funcA := func(*router.Request, router.Context) (*router.Response, error) {
+		return router.NewResponse(http.StatusOK).SetString("text/plain", "A")
+	}
+	funcB := func(*router.Request, router.Context) (*router.Response, error) {
+		return router.NewResponse(http.StatusOK).SetString("text/plain", "B")
+	}
+
+	s, _ := New(WithHandlers(handlerA, handlerB))
+	s.Add("/a", funcA).Methods("GET")
+	s.Add("/b", funcB).Methods("GET")
+
+	reqA := mustGet("/a")
+	reqB := mustGet("/b")
+
+	for n := 0; n < b.N; n++ {
+		var rec *httptest.ResponseRecorder
+		rec = httptest.NewRecorder()
+		s.ServeHTTP(rec, reqA)
+		rec = httptest.NewRecorder()
+		s.ServeHTTP(rec, reqB)
+	}
+}
+
+/*func BenchmarkRoutes(b *testing.B) {
+
+	funcA := func(*Request, Context) (*Response, error) {
+		return NewResponse(http.StatusOK).SetString("text/plain", "A")
+	}
+
+	r := New()
+	r.Add("/a", funcA).Methods("GET")
+
+	s1 := r.Subrouter("/x")
+	s1.Add("/a", funcA).Methods("GET")
+
+	s2 := s1.Subrouter("/y")
+	s2.Add("/a", funcA).Methods("GET")
+
+	s3 := r.Subrouter("/z")
+	s3.Add("/a", funcA).Methods("GET").Param("foo", "bar")
+	s3.Add("/b", funcA).Methods("GET").Param("foo", "bar").Param("zap", "pap")
+	s3.Add("/b", funcA).Methods("GET").Params(url.Values{"foo": {"bar", "car"}, "zap": {"pap"}})
+
+	for n := 0; n < b.N; n++ {
+		req, err := NewRequest("GET", "/z/b?foo=bar&foo=car&zap=pap", nil)
+		if err != nil {
+			panic(err)
+		}
+		x, _, err := r.Find(req)
+		if err != nil {
+			panic(err)
+		}
+		if x == nil {
+			panic(fmt.Errorf("Could not route: %v", req))
+		}
+	}
+
+}
+*/

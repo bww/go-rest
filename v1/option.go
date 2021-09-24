@@ -35,9 +35,9 @@ func WithMetrics(m *metrics.Metrics) Option {
 	}
 }
 
-func WithHandler(v Handler) Option {
+func WithHandlers(v ...Handler) Option {
 	return func(s *Service) (*Service, error) {
-		s.root = v
+		s.pline = &Pipeline{v}
 		return s, nil
 	}
 }

@@ -14,7 +14,6 @@ import (
 
 	"github.com/bww/go-metrics/v1"
 	"github.com/bww/go-router/v1"
-	"github.com/bww/go-router/v1/path"
 	"github.com/bww/go-util/v1/text"
 	"github.com/sirupsen/logrus"
 )
@@ -22,7 +21,7 @@ import (
 type Service struct {
 	router.Router
 
-	root    Handler
+	pline   *Pipeline
 	log     *logrus.Logger
 	verbose bool
 	debug   bool
@@ -90,7 +89,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	} else {
 		req := (*router.Request)((*http.Request)(req).WithContext(router.NewMatchContext(req.Context(), match)))
 		cxt := route.Context(match)
-		rsp, err = s.root.Handle(req, cxt, s.handler(route))
+		hdl := s.handler(route)
+		if s.pline != nil {
+			rsp, err = s.pline.With(hdl).Handle(req, cxt)
+		} else {
+			rsp, err = hdl.Handle(req, cxt, nil)
+		}
 		if err != nil {
 			s.log.WithFields(logrus.Fields{"because": err}).Error("Handler failed")
 			return
@@ -133,12 +137,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Service) handler(route *router.Route) Handler {
-	return HandlerFunc(func(req *router.Request, cxt router.Context, next Handler) (*router.Response, error) {
+	return HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
 		if s.verbose {
 			s.log.Info(resource(req))
 		}
-		if next != nil {
-			return next.Handle(req, cxt, nil)
+		if next.Len() > 0 {
+			return next.Handle(req, cxt)
 		}
 
 		rsp, err := route.Handle(req, cxt)
@@ -188,12 +192,4 @@ func resource(req *router.Request) string {
 		r += fmt.Sprintf("?%s", p)
 	}
 	return r
-}
-
-func ensureVars(v path.Vars) path.Vars {
-	if v != nil {
-		return v
-	} else {
-		return make(path.Vars)
-	}
 }
