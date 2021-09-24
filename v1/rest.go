@@ -97,25 +97,33 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	var (
+		rrq *router.Request
+		cxt router.Context
+		hdl Handler
+	)
 	route, match, err := s.Router.Find((*router.Request)(req))
 	if err != nil {
 		s.log.WithFields(logrus.Fields{"because": err}).Error("Could not lookup route")
-		rsp = errors.Errorf(http.StatusInternalServerError, "Internal server error").Response()
+		rrq = (*router.Request)(req)
+		hdl = HandlerFunc(s.handle500)
 	} else if route == nil {
-		rsp = errors.Errorf(http.StatusNotFound, "Not found").Response()
+		s.log.Error("Route not found")
+		rrq = (*router.Request)(req)
+		hdl = HandlerFunc(s.handle404)
 	} else {
-		req := (*router.Request)((*http.Request)(req).WithContext(router.NewMatchContext(req.Context(), match)))
-		cxt := route.Context(match)
-		hdl := s.handler(route)
-		if s.pline != nil {
-			rsp, err = s.pline.With(hdl).Handle(req, cxt)
-		} else {
-			rsp, err = hdl.Handle(req, cxt, nil)
-		}
-		if err != nil {
-			s.log.WithFields(logrus.Fields{"because": err}).Error("Handler failed")
-			return
-		}
+		rrq = (*router.Request)((*http.Request)(req).WithContext(router.NewMatchContext(req.Context(), match)))
+		cxt = route.Context(match)
+		hdl = s.handler(route)
+	}
+	if s.pline != nil {
+		rsp, err = s.pline.With(hdl).Handle(rrq, cxt)
+	} else {
+		rsp, err = hdl.Handle(rrq, cxt, nil)
+	}
+	if err != nil {
+		s.log.WithFields(logrus.Fields{"because": err}).Error("Handler failed")
+		return
 	}
 
 	if rsp == nil {
@@ -204,6 +212,18 @@ func (s *Service) handler(route *router.Route) Handler {
 			return rsp, err
 		}
 	})
+}
+
+var (
+	err404 = errors.Errorf(http.StatusNotFound, "Not found")
+	err500 = errors.Errorf(http.StatusInternalServerError, "Internal server error")
+)
+
+func (s *Service) handle404(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
+	return err404.Response(), nil
+}
+func (s *Service) handle500(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
+	return err500.Response(), nil
 }
 
 // Format a resource name

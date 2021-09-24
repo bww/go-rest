@@ -88,23 +88,39 @@ func testService(t *testing.T, opts ...Option) {
 	}{
 		{
 			mustReq("GET", "/a", nil),
-			mustNewResponse(http.StatusOK, "text/plain", "A").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
+			mustNewResponse(http.StatusOK, "text/plain", "A").
+				SetHeader("X-Handler-A", "1").
+				SetHeader("X-Handler-B", "1"),
 		},
 		{
 			mustReq("GET", "/b", nil),
-			mustNewResponse(http.StatusOK, "text/plain", "B").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
+			mustNewResponse(http.StatusOK, "text/plain", "B").
+				SetHeader("X-Handler-A", "1").
+				SetHeader("X-Handler-B", "1"),
 		},
 		{
 			mustReq("GET", "/c", nil),
-			mustNewResponse(http.StatusOK, "binary/data", "10011010").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
+			mustNewResponse(http.StatusOK, "binary/data", "10011010").
+				SetHeader("X-Handler-A", "1").
+				SetHeader("X-Handler-B", "1"),
 		},
 		{
 			mustReq("POST", "/c", mustEntity("text/plain", []byte("Hi"))),
-			mustNewResponse(http.StatusOK, "binary/data", "10011010").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
+			mustNewResponse(http.StatusOK, "binary/data", "10011010").
+				SetHeader("X-Handler-A", "1").
+				SetHeader("X-Handler-B", "1"),
 		},
 		{
 			mustReq("POST", "/c", mustEntity("binary/data", []byte("10011010"))),
-			mustNewResponse(http.StatusOK, "binary/data", "10011010").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
+			mustNewResponse(http.StatusOK, "binary/data", "10011010").
+				SetHeader("X-Handler-A", "1").
+				SetHeader("X-Handler-B", "1"),
+		},
+		{
+			mustReq("GET", "/missing", nil),
+			mustNewResponse(http.StatusNotFound, "application/json", `{"message":"Not found"}`).
+				SetHeader("X-Handler-A", "1").
+				SetHeader("X-Handler-B", "1"),
 		},
 	}
 
