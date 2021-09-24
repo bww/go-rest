@@ -51,6 +51,11 @@ func readAll(v io.Reader) string {
 }
 
 func TestService(t *testing.T) {
+	testService(t, WithVerbose(true), WithDebug(true))
+	testService(t, WithVerbose(true))
+}
+
+func testService(t *testing.T, opts ...Option) {
 	handlerA := HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
 		rsp, err := next.Handle(req, cxt)
 		rsp.Header.Add("X-Handler-A", "1")
@@ -72,11 +77,7 @@ func TestService(t *testing.T) {
 		return router.NewResponse(http.StatusOK).SetString("binary/data", "10011010")
 	}
 
-	s, _ := New(
-		WithHandlers(handlerA, handlerB),
-		WithVerbose(true),
-		WithDebug(true),
-	)
+	s, _ := New(append(opts, WithHandlers(handlerA, handlerB))...)
 	s.Add("/a", funcA).Methods("GET")
 	s.Add("/b", funcB).Methods("GET")
 	s.Add("/c", funcC).Methods("GET", "POST")
