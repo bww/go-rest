@@ -27,12 +27,12 @@ func (c *Pipeline) With(h ...Handler) *Pipeline {
 }
 
 func (c *Pipeline) Len() int {
-	return len(c.h)
+	return c != nil && len(c.h)
 }
 
 func (c *Pipeline) Next() Handler {
 	var n Handler
-	if len(c.h) > 0 {
+	if c != nil && len(c.h) > 0 {
 		n, c.h = c.h[0], c.h[1:]
 	}
 	return n
