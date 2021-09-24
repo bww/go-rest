@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime/debug"
 	"time"
 
@@ -68,16 +69,32 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}()
 
-	var reqdump string
-	if s.debug && !isMimetypeBinary(req.Header.Get("Content-Type")) {
+	var dump *bytes.Buffer
+	if s.debug {
+		dump = &bytes.Buffer{}
+		dump.WriteString(text.Indent(resource((*router.Request)(req)), "  > "))
+		dump.WriteString("\n")
+
 		data := &bytes.Buffer{}
-		_, err := io.Copy(data, req.Body)
-		if err != nil {
-			s.log.WithFields(logrus.Fields{"because": err}).Error("Could not read request entity")
-		} else {
-			reqdump = text.Indent(string(data.Bytes()), "  > ")
+		req.Header.Write(data)
+		dump.WriteString(text.Indent(string(data.Bytes()), "  > "))
+		dump.WriteString("\n")
+
+		mtype := req.Header.Get("Content-Type")
+		if !isMimetypeBinary(mtype) {
+			data := &bytes.Buffer{}
+			_, err := io.Copy(data, req.Body)
+			if err != nil {
+				s.log.WithFields(logrus.Fields{"because": err}).Error("Could not read request entity")
+			} else {
+				dump.WriteString(text.Indent(string(data.Bytes()), "  > "))
+				dump.WriteString("\n")
+			}
+			req.Body = ioutil.NopCloser(data)
+		} else if mtype != "" {
+			dump.WriteString(text.Indent("[binary data]", "  > "))
+			dump.WriteString("\n")
 		}
-		req.Body = ioutil.NopCloser(data)
 	}
 
 	route, match, err := s.Router.Find((*router.Request)(req))
@@ -113,21 +130,37 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(rsp.Status)
 
 	if s.debug {
-		fmt.Println(reqdump)
-		fmt.Printf("  * %d / %s\n", rsp.Status, http.StatusText(rsp.Status))
+		dump.WriteString(fmt.Sprintf("  *\n  < %d / %s\n", rsp.Status, http.StatusText(rsp.Status)))
 	}
 
 	if entity := rsp.Entity; entity != nil {
 		defer entity.Close()
-		if s.debug && !isMimetypeBinary(req.Header.Get("Content-Type")) {
+		if dump != nil {
 			data := &bytes.Buffer{}
-			_, err := io.Copy(data, entity)
-			if err != nil {
-				s.log.WithFields(logrus.Fields{"because": err}).Error("Could not read response entity")
-			} else {
-				fmt.Println(text.Indent(string(data.Bytes()), "  < "))
+			rsp.Header.Write(data)
+			dump.WriteString(text.Indent(string(data.Bytes()), "  < "))
+			dump.WriteString("\n")
+
+			mtype := rsp.Header.Get("Content-Type")
+			if !isMimetypeBinary(mtype) {
+				data := &bytes.Buffer{}
+				_, err := io.Copy(data, entity)
+				if err != nil {
+					s.log.WithFields(logrus.Fields{"because": err}).Error("Could not read response entity")
+				} else {
+					dump.WriteString(text.Indent(string(data.Bytes()), "  < "))
+					dump.WriteString("\n")
+				}
+				entity = ioutil.NopCloser(data)
+			} else if mtype != "" {
+				dump.WriteString(text.Indent("[binary data]", "  < "))
+				dump.WriteString("\n")
 			}
-			entity = ioutil.NopCloser(data)
+
+			_, err := io.Copy(os.Stdout, dump)
+			if err != nil {
+				s.log.WithFields(logrus.Fields{"because": err}).Errorf("Could not dump request")
+			}
 		}
 		_, err := io.Copy(w, entity)
 		if err != nil {

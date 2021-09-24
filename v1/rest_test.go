@@ -7,13 +7,29 @@ import (
 	"testing"
 
 	"github.com/bww/go-router/v1"
+	"github.com/bww/go-router/v1/entity"
 	"github.com/stretchr/testify/assert"
 )
 
-func mustGet(s string) *http.Request {
-	req, err := http.NewRequest("GET", s, nil)
+func mustEntity(t string, d []byte) entity.Entity {
+	e, err := entity.NewBytes(t, d)
 	if err != nil {
 		panic(err)
+	}
+	return e
+}
+
+func mustReq(m, s string, e entity.Entity) *http.Request {
+	var b io.Reader
+	if e != nil {
+		b = e.Data()
+	}
+	req, err := http.NewRequest(m, s, b)
+	if err != nil {
+		panic(err)
+	}
+	if e != nil {
+		req.Header.Set("Content-Type", e.Type())
 	}
 	return req
 }
@@ -52,6 +68,9 @@ func TestService(t *testing.T) {
 	funcB := func(*router.Request, router.Context) (*router.Response, error) {
 		return router.NewResponse(http.StatusOK).SetString("text/plain", "B")
 	}
+	funcC := func(*router.Request, router.Context) (*router.Response, error) {
+		return router.NewResponse(http.StatusOK).SetString("binary/data", "10011010")
+	}
 
 	s, _ := New(
 		WithHandlers(handlerA, handlerB),
@@ -60,18 +79,31 @@ func TestService(t *testing.T) {
 	)
 	s.Add("/a", funcA).Methods("GET")
 	s.Add("/b", funcB).Methods("GET")
+	s.Add("/c", funcC).Methods("GET", "POST")
 
 	tests := []struct {
 		Req *http.Request
 		Rsp *router.Response
 	}{
 		{
-			mustGet("/a"),
+			mustReq("GET", "/a", nil),
 			mustNewResponse(http.StatusOK, "text/plain", "A").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
 		},
 		{
-			mustGet("/b"),
+			mustReq("GET", "/b", nil),
 			mustNewResponse(http.StatusOK, "text/plain", "B").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
+		},
+		{
+			mustReq("GET", "/c", nil),
+			mustNewResponse(http.StatusOK, "binary/data", "10011010").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
+		},
+		{
+			mustReq("POST", "/c", mustEntity("text/plain", []byte("Hi"))),
+			mustNewResponse(http.StatusOK, "binary/data", "10011010").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
+		},
+		{
+			mustReq("POST", "/c", mustEntity("binary/data", []byte("10011010"))),
+			mustNewResponse(http.StatusOK, "binary/data", "10011010").SetHeader("X-Handler-A", "1").SetHeader("X-Handler-B", "1"),
 		},
 	}
 
@@ -108,8 +140,8 @@ func BenchmarkService(b *testing.B) {
 	s.Add("/a", funcA).Methods("GET")
 	s.Add("/b", funcB).Methods("GET")
 
-	reqA := mustGet("/a")
-	reqB := mustGet("/b")
+	reqA := mustReq("GET", "/a", nil)
+	reqB := mustReq("GET", "/b", nil)
 
 	for n := 0; n < b.N; n++ {
 		var rec *httptest.ResponseRecorder
