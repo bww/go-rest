@@ -27,7 +27,11 @@ func (c *Pipeline) With(h ...Handler) *Pipeline {
 }
 
 func (c *Pipeline) Len() int {
-	return c != nil && len(c.h)
+	if c != nil {
+		return len(c.h)
+	} else {
+		return 0
+	}
 }
 
 func (c *Pipeline) Next() Handler {
