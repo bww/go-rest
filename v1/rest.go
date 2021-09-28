@@ -108,7 +108,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		rrq = (*router.Request)(req)
 		hdl = HandlerFunc(s.handle500)
 	} else if route == nil {
-		s.log.Error("Route not found")
+		s.log.Errorf("Not found: %s", resource((*router.Request)(req)))
 		rrq = (*router.Request)(req)
 		hdl = HandlerFunc(s.handle404)
 	} else {
