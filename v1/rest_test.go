@@ -181,9 +181,18 @@ func TestUnwrapErrors(t *testing.T) {
 
 	entry := errlog(&logrus.Logger{}, err0)
 	assert.Equal(t, logrus.Fields{
-		"because":   "Error #1",
-		"because_1": "Error #2",
-		"because_2": "Error #3: Error #4",
-		// next error is not unwrapped because it is not an errors.Error
+		"because":    "Error #1",
+		"because #2": "Error #2",
+		"because #3": "Error #3: Error #4", // err4 is not unwrapped because it is not an errors.Error
+	}, entry.Data)
+}
+
+func TestUnwrapErrorsNoCause(t *testing.T) {
+	err1 := errors.Errorf(http.StatusBadRequest, "Error #1")
+	err0 := errors.Errorf(http.StatusBadRequest, "Error #0").SetCause(err1)
+
+	entry := errlog(&logrus.Logger{}, err0)
+	assert.Equal(t, logrus.Fields{
+		"because": "Error #1", // err1 has no cause
 	}, entry.Data)
 }

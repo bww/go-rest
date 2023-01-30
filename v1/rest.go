@@ -188,7 +188,7 @@ func (s *Service) handler(route *router.Route) Handler {
 		}
 
 		rsp, err := route.Handle(req, cxt)
-		if err == nil {
+		if err == nil { // short circuit on success; error handling follows
 			return rsp, nil
 		}
 
@@ -246,13 +246,14 @@ func errlog(log *logrus.Logger, err error) *logrus.Entry {
 		if !syserrs.As(err, &resterr) {
 			break
 		}
-		cause := resterr.Unwrap()
-		name := "because"
-		if n > 0 {
-			name = name + fmt.Sprintf("_%d", n)
+		err = resterr.Unwrap()
+		if err != nil {
+			name := "because"
+			if n > 0 {
+				name = name + fmt.Sprintf(" #%d", n+1)
+			}
+			fields[name] = err.Error()
 		}
-		fields[name] = cause.Error()
-		err = cause
 	}
 
 	return log.WithFields(fields)
