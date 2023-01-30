@@ -241,7 +241,7 @@ func resource(req *router.Request) string {
 func errlog(log *logrus.Logger, err error) *logrus.Entry {
 	fields := make(logrus.Fields)
 
-	for n := 0; ; n++ {
+	for n := 0; err != nil; n++ {
 		var resterr *errors.Error
 		if !syserrs.As(err, &resterr) {
 			break
