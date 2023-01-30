@@ -13,6 +13,11 @@ const fieldErrorsKey = "field_errors"
 
 type Code string
 
+type Responder interface {
+	error
+	Response() *router.Response
+}
+
 type Error struct {
 	Status  int                    `json:"-"`
 	Code    Code                   `json:"code,omitempty"`
