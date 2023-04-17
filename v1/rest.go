@@ -2,6 +2,7 @@ package rest
 
 import (
 	"bytes"
+	syserrs "errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -187,27 +188,16 @@ func (s *Service) handler(route *router.Route) Handler {
 		}
 
 		rsp, err := route.Handle(req, cxt)
-		if err == nil {
+		if err == nil { // short circuit on success; error handling follows
 			return rsp, nil
 		}
 
-		var cause error
-		if c, ok := err.(*errors.Error); ok {
-			cause = c.Cause
-		}
-
-		var elog *logrus.Entry
-		if cause == nil {
-			elog = s.log.WithFields(logrus.Fields{})
-		} else {
-			elog = s.log.WithFields(logrus.Fields{
-				"because": cause.Error(),
-			})
-		}
-
+		elog := errlog(s.log, err)
 		elog.Errorf("%s: %v", resource(req), err)
-		if c, ok := err.(*errors.Error); ok {
-			return c.Response(), nil
+
+		var rsperr errors.Responder
+		if syserrs.As(err, &rsperr) {
+			return rsperr.Response(), nil
 		} else {
 			return rsp, err
 		}
@@ -245,4 +235,26 @@ func resource(req *router.Request) string {
 		r += fmt.Sprintf("?%s", p)
 	}
 	return r
+}
+
+// Produce a logger for an error
+func errlog(log *logrus.Logger, err error) *logrus.Entry {
+	fields := make(logrus.Fields)
+
+	for n := 0; err != nil; n++ {
+		var resterr *errors.Error
+		if !syserrs.As(err, &resterr) {
+			break
+		}
+		err = resterr.Unwrap()
+		if err != nil {
+			name := "because"
+			if n > 0 {
+				name = name + fmt.Sprintf(" #%d", n+1)
+			}
+			fields[name] = err.Error()
+		}
+	}
+
+	return log.WithFields(fields)
 }
