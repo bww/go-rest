@@ -9,7 +9,10 @@ import (
 	"github.com/bww/go-validate/v1"
 )
 
-const fieldErrorsKey = "field_errors"
+const (
+	helpKey        = "help"
+	fieldErrorsKey = "field_errors"
+)
 
 type Code string
 
@@ -95,8 +98,26 @@ func (e *Error) SetDetail(d map[string]interface{}) *Error {
 	return e
 }
 
+func (e *Error) AddDetail(d map[string]interface{}) *Error {
+	if e.Detail == nil {
+		e.Detail = make(map[string]interface{})
+	}
+	for k, v := range d {
+		e.Detail[k] = v
+	}
+	return e
+}
+
+func (e *Error) SetHelp(help string) *Error {
+	return e.AddDetail(map[string]interface{}{
+		helpKey: help,
+	})
+}
+
 func (e *Error) SetFieldErrors(errs validate.Errors) *Error {
-	return e.SetDetail(map[string]interface{}{fieldErrorsKey: errs})
+	return e.AddDetail(map[string]interface{}{
+		fieldErrorsKey: errs,
+	})
 }
 
 func (e *Error) Response() *router.Response {
