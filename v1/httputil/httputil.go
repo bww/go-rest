@@ -11,6 +11,8 @@ import (
 	"github.com/gorilla/schema"
 )
 
+const mpartMaxMem = 1 << 20
+
 var ErrUnsupportedMimetype = fmt.Errorf("Unsupported content type")
 
 var formDecoder *schema.Decoder
@@ -21,9 +23,9 @@ func init() {
 }
 
 // Unmarshal common entity types:
-//  - application/json
-//  - application/x-www-form-urlencoded
-//  - multipart/form-data
+//   - application/json
+//   - application/x-www-form-urlencoded
+//   - multipart/form-data
 func Unmarshal(req *router.Request, entity interface{}) error {
 	m, _, err := mime.ParseMediaType(req.Header.Get("Content-Type"))
 	if err != nil {
@@ -37,7 +39,17 @@ func Unmarshal(req *router.Request, entity interface{}) error {
 			return fmt.Errorf("Could not unmarshal request entity: %v", err)
 		}
 
-	case "application/x-www-form-urlencoded", "multipart/form-data":
+	case "multipart/form-data":
+		err := (*http.Request)(req).ParseMultipartForm(mpartMaxMem)
+		if err != nil {
+			return fmt.Errorf("Could not parse multipart form: %v", err)
+		}
+		err = formDecoder.Decode(entity, req.Form) // caller must access multipart data separately
+		if err != nil {
+			return fmt.Errorf("Could not unmarshal request entity: %v", err)
+		}
+
+	case "application/x-www-form-urlencoded":
 		err := (*http.Request)(req).ParseForm()
 		if err != nil {
 			return fmt.Errorf("Could not parse payload: %v", err)
