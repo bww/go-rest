@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/schema"
 )
 
-const mpartMaxMem = 1 << 20
+const multipartMemMax = 1 << 25
 
 var ErrUnsupportedMimetype = fmt.Errorf("Unsupported content type")
 
@@ -40,7 +40,7 @@ func Unmarshal(req *router.Request, entity interface{}) error {
 		}
 
 	case "multipart/form-data":
-		err := (*http.Request)(req).ParseMultipartForm(mpartMaxMem)
+		err := (*http.Request)(req).ParseMultipartForm(multipartMemMax)
 		if err != nil {
 			return fmt.Errorf("Could not parse multipart form: %v", err)
 		}
