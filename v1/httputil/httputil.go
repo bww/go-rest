@@ -12,7 +12,7 @@ import (
 )
 
 // default maximum memory per request
-const memMax = 1 << 25
+const maxMem = 1 << 25
 
 var ErrUnsupportedMimetype = fmt.Errorf("Unsupported content type")
 
@@ -27,7 +27,7 @@ func init() {
 func Unmarshal(req *router.Request, entity interface{}, opts ...Option) error {
 	return UnmarshalWithConfig(req, entity, Config{
 		MaxMem: maxMem,
-	}.WithOptions(opts...))
+	}.WithOptions(opts))
 }
 
 // Unmarshal requests with common entity types:
