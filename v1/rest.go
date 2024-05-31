@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,15 +17,15 @@ import (
 
 	"github.com/bww/go-metrics/v1"
 	"github.com/bww/go-router/v1"
+	"github.com/bww/go-util/v1/ext"
 	"github.com/bww/go-util/v1/text"
-	"github.com/sirupsen/logrus"
 )
 
 type Service struct {
 	router.Router
 
 	pline   *Pipeline
-	log     *logrus.Logger
+	log     *slog.Logger
 	verbose bool
 	debug   bool
 
@@ -33,21 +34,21 @@ type Service struct {
 }
 
 func New(opts ...Option) (*Service, error) {
+	conf, err := Config{}.WithOptions(opts)
+	if err != nil {
+		return nil, err
+	}
+
 	s := &Service{
-		Router: router.New(),
+		Router:  router.New(),
+		pline:   conf.Pipeline,
+		log:     ext.Coalesce(conf.Logger, slog.Default()),
+		verbose: conf.Verbose,
+		debug:   conf.Debug,
 	}
-	var err error
-	for _, o := range opts {
-		s, err = o(s)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if s.log == nil {
-		s.log = logrus.StandardLogger()
-	}
-	if s.metrics != nil {
-		s.requestSampler = s.metrics.RegisterSamplerVec("rest_request", "Request sampler", []string{"status"})
+
+	if conf.Metrics != nil {
+		s.requestSampler = conf.Metrics.RegisterSamplerVec("rest_request", "Request sampler", []string{"status"})
 	}
 	return s, nil
 }
@@ -56,10 +57,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var rsp *router.Response
 	var err error
 
+	method, rcname := resource((*router.Request)(req))
+	log := s.log.With("method", method, "url", rcname)
 	start := time.Now()
 	defer func() {
 		if err := recover(); err != nil {
-			s.log.WithFields(logrus.Fields{"because": err}).Errorf("PANIC: %s\n", resource((*router.Request)(req)))
+			log.With("because", err).Error("PANIC")
 			fmt.Println(string(debug.Stack()))
 			return
 		}
@@ -72,8 +75,9 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	var dump *bytes.Buffer
 	if s.debug {
+		method, rcname := resource((*router.Request)(req))
 		dump = &bytes.Buffer{}
-		dump.WriteString(text.Indent(resource((*router.Request)(req)), "  > "))
+		dump.WriteString(text.Indent(fmt.Sprintf("%s %s", method, rcname), "  > "))
 		dump.WriteString("\n")
 
 		data := &bytes.Buffer{}
@@ -86,7 +90,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			data := &bytes.Buffer{}
 			_, err := io.Copy(data, req.Body)
 			if err != nil {
-				s.log.WithFields(logrus.Fields{"because": err}).Error("Could not read request entity")
+				log.With("because", err).Error("Could not read request entity")
 			} else {
 				dump.WriteString(text.Indent(string(data.Bytes()), "  > "))
 				dump.WriteString("\n")
@@ -105,11 +109,11 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	)
 	route, match, err := s.Router.Find((*router.Request)(req))
 	if err != nil {
-		s.log.WithFields(logrus.Fields{"because": err}).Error("Could not lookup route")
+		log.With("because", err).Error("Could not look up route")
 		rrq = (*router.Request)(req)
 		hdl = HandlerFunc(s.handle500)
 	} else if route == nil {
-		s.log.Errorf("Not found: %s", resource((*router.Request)(req)))
+		log.Error("Route not found")
 		rrq = (*router.Request)(req)
 		hdl = HandlerFunc(s.handle404)
 	} else {
@@ -123,7 +127,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		rsp, err = hdl.Handle(rrq, cxt, nil)
 	}
 	if err != nil {
-		s.log.WithFields(logrus.Fields{"because": err}).Error("Handler failed")
+		log.With("because", err).Error("Handler failed")
 		return
 	}
 
@@ -155,7 +159,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				data := &bytes.Buffer{}
 				_, err := io.Copy(data, entity)
 				if err != nil {
-					s.log.WithFields(logrus.Fields{"because": err}).Error("Could not read response entity")
+					log.With("because", err).Error("Could not read response entity")
 				} else {
 					dump.WriteString(text.Indent(string(data.Bytes()), "  < "))
 					dump.WriteString("\n")
@@ -168,20 +172,22 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 			_, err := io.Copy(os.Stdout, dump)
 			if err != nil {
-				s.log.WithFields(logrus.Fields{"because": err}).Errorf("Could not dump request")
+				log.With("because", err).Error("Could not dump request")
 			}
 		}
 		_, err := io.Copy(w, entity)
 		if err != nil {
-			s.log.WithFields(logrus.Fields{"because": err}).Errorf("Could not write response entity")
+			log.With("because", err).Error("Could not write response entity")
 		}
 	}
 }
 
 func (s *Service) handler(route *router.Route) Handler {
 	return HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
+		method, rcname := resource((*router.Request)(req))
+		log := s.log.With("method", method, "url", rcname)
 		if s.verbose {
-			s.log.Info(resource(req))
+			log.Info(req.OriginAddr())
 		}
 		if next.Len() > 0 {
 			return next.Handle(req, cxt)
@@ -192,8 +198,7 @@ func (s *Service) handler(route *router.Route) Handler {
 			return rsp, nil
 		}
 
-		elog := errlog(s.log, err)
-		elog.Errorf("%s: %v", resource(req), err)
+		errlog(log, err).Error(err.Error())
 
 		var rsperr errors.Responder
 		if syserrs.As(err, &rsperr) {
@@ -217,8 +222,8 @@ func (s *Service) handle500(req *router.Request, cxt router.Context, next *Pipel
 }
 
 // Format a resource name
-func resource(req *router.Request) string {
-	r := fmt.Sprintf("%s %s", req.Method, req.URL.Path)
+func resource(req *router.Request) (string, string) {
+	r := req.URL.Path
 	var p string
 	for k, v := range req.URL.Query() {
 		for _, e := range v {
@@ -234,13 +239,11 @@ func resource(req *router.Request) string {
 	if len(p) > 0 {
 		r += fmt.Sprintf("?%s", p)
 	}
-	return r
+	return req.Method, r
 }
 
 // Produce a logger for an error
-func errlog(log *logrus.Logger, err error) *logrus.Entry {
-	fields := make(logrus.Fields)
-
+func errlog(log *slog.Logger, err error) *slog.Logger {
 	for n := 0; err != nil; n++ {
 		var resterr *errors.Error
 		if !syserrs.As(err, &resterr) {
@@ -252,9 +255,9 @@ func errlog(log *logrus.Logger, err error) *logrus.Entry {
 			if n > 0 {
 				name = name + fmt.Sprintf(" #%d", n+1)
 			}
-			fields[name] = err.Error()
+			log = log.With(name, err.Error())
 		}
 	}
 
-	return log.WithFields(fields)
+	return log
 }

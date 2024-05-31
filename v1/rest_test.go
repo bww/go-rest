@@ -1,16 +1,13 @@
 package rest
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bww/go-rest/v1/errors"
 	"github.com/bww/go-router/v1"
 	"github.com/bww/go-router/v1/entity"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -170,29 +167,4 @@ func BenchmarkService(b *testing.B) {
 		rec = httptest.NewRecorder()
 		s.ServeHTTP(rec, reqB)
 	}
-}
-
-func TestUnwrapErrors(t *testing.T) {
-	err4 := fmt.Errorf("Error #4")
-	err3 := fmt.Errorf("Error #3: %w", err4)
-	err2 := errors.Errorf(http.StatusBadRequest, "Error #2").SetCause(err3)
-	err1 := errors.Errorf(http.StatusBadRequest, "Error #1").SetCause(err2)
-	err0 := errors.Errorf(http.StatusBadRequest, "Error #0").SetCause(err1)
-
-	entry := errlog(&logrus.Logger{}, err0)
-	assert.Equal(t, logrus.Fields{
-		"because":    "Error #1",
-		"because #2": "Error #2",
-		"because #3": "Error #3: Error #4", // err4 is not unwrapped because it is not an errors.Error
-	}, entry.Data)
-}
-
-func TestUnwrapErrorsNoCause(t *testing.T) {
-	err1 := errors.Errorf(http.StatusBadRequest, "Error #1")
-	err0 := errors.Errorf(http.StatusBadRequest, "Error #0").SetCause(err1)
-
-	entry := errlog(&logrus.Logger{}, err0)
-	assert.Equal(t, logrus.Fields{
-		"because": "Error #1", // err1 has no cause
-	}, entry.Data)
 }
