@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/bww/go-router/v1"
+	"github.com/bww/go-router/v2"
 	"github.com/bww/go-validate/v1"
 )
 

@@ -3,7 +3,7 @@ package response
 import (
 	"net/http"
 
-	"github.com/bww/go-router/v1"
+	"github.com/bww/go-router/v2"
 )
 
 // Produce a successful 200 response, optionally with a payload, which will be marshaled to JSON

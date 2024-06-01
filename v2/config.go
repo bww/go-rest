@@ -4,7 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/bww/go-metrics/v1"
-	"github.com/bww/go-router/v1"
+	"github.com/bww/go-router/v2"
 )
 
 type Config struct {

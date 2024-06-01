@@ -16,7 +16,7 @@ import (
 	"github.com/bww/go-rest/v1/errors"
 
 	"github.com/bww/go-metrics/v1"
-	"github.com/bww/go-router/v1"
+	"github.com/bww/go-router/v2"
 	"github.com/bww/go-util/v1/ext"
 	"github.com/bww/go-util/v1/text"
 )

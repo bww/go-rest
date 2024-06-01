@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/bww/go-router/v1"
-	"github.com/bww/go-router/v1/entity"
+	"github.com/bww/go-router/v2"
+	"github.com/bww/go-router/v2/entity"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/bww/go-router/v1"
+	"github.com/bww/go-router/v2"
 	"github.com/gorilla/schema"
 )
 
