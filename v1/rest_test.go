@@ -56,16 +56,20 @@ func TestService(t *testing.T) {
 }
 
 func testService(t *testing.T, opts ...Option) {
-	handlerA := HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
-		rsp, err := next.Handle(req, cxt)
-		rsp.Header.Add("X-Handler-A", "1")
-		return rsp, err
-	})
-	handlerB := HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
-		rsp, err := next.Handle(req, cxt)
-		rsp.Header.Add("X-Handler-B", "1")
-		return rsp, err
-	})
+	middleA := func(h router.Handler) router.Handler {
+		return func(req *router.Request, cxt router.Context) (*router.Response, error) {
+			rsp, err := h(req, cxt)
+			rsp.Header.Add("X-Handler-A", "1")
+			return rsp, err
+		}
+	}
+	middleB := func(h router.Handler) router.Handler {
+		return func(req *router.Request, cxt router.Context) (*router.Response, error) {
+			rsp, err := h(req, cxt)
+			rsp.Header.Add("X-Handler-B", "1")
+			return rsp, err
+		}
+	}
 
 	funcA := func(*router.Request, router.Context) (*router.Response, error) {
 		return router.NewResponse(http.StatusOK).SetString("text/plain", "A")
@@ -76,8 +80,17 @@ func testService(t *testing.T, opts ...Option) {
 	funcC := func(*router.Request, router.Context) (*router.Response, error) {
 		return router.NewResponse(http.StatusOK).SetString("binary/data", "10011010")
 	}
+	funcD := func(*router.Request, router.Context) (*router.Response, error) {
+		return router.NewResponse(http.StatusInternalServerError).SetString("application/json", `{"message":"Something went wrong"}`)
+	}
 
-	s, _ := New(append(opts, WithHandlers(handlerA, handlerB))...)
+	s, _ := New(append(opts, WithDefault(funcD))...)
+
+	// middleware
+	s.Use(router.MiddleFunc(middleA))
+	s.Use(router.MiddleFunc(middleB))
+
+	// routes
 	s.Add("/a", funcA).Methods("GET")
 	s.Add("/b", funcB).Methods("GET")
 	s.Add("/c", funcC).Methods("GET", "POST")
@@ -116,11 +129,10 @@ func testService(t *testing.T, opts ...Option) {
 				SetHeader("X-Handler-A", "1").
 				SetHeader("X-Handler-B", "1"),
 		},
-		{
+		{ // missing gets the default route, which does not have middleware applied
+			// unless you explicitly apply it
 			mustReq("GET", "/missing", nil),
-			mustNewResponse(http.StatusNotFound, "application/json", `{"message":"Not found"}`).
-				SetHeader("X-Handler-A", "1").
-				SetHeader("X-Handler-B", "1"),
+			mustNewResponse(http.StatusInternalServerError, "application/json", `{"message":"Something went wrong"}`),
 		},
 	}
 
@@ -135,16 +147,20 @@ func testService(t *testing.T, opts ...Option) {
 }
 
 func BenchmarkService(b *testing.B) {
-	handlerA := HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
-		rsp, err := next.Handle(req, cxt)
-		rsp.Header.Add("X-Handler-A", "1")
-		return rsp, err
-	})
-	handlerB := HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
-		rsp, err := next.Handle(req, cxt)
-		rsp.Header.Add("X-Handler-B", "1")
-		return rsp, err
-	})
+	middleA := func(h router.Handler) router.Handler {
+		return func(req *router.Request, cxt router.Context) (*router.Response, error) {
+			rsp, err := h(req, cxt)
+			rsp.Header.Add("X-Handler-A", "1")
+			return rsp, err
+		}
+	}
+	middleB := func(h router.Handler) router.Handler {
+		return func(req *router.Request, cxt router.Context) (*router.Response, error) {
+			rsp, err := h(req, cxt)
+			rsp.Header.Add("X-Handler-B", "1")
+			return rsp, err
+		}
+	}
 
 	funcA := func(*router.Request, router.Context) (*router.Response, error) {
 		return router.NewResponse(http.StatusOK).SetString("text/plain", "A")
@@ -153,7 +169,13 @@ func BenchmarkService(b *testing.B) {
 		return router.NewResponse(http.StatusOK).SetString("text/plain", "B")
 	}
 
-	s, _ := New(WithHandlers(handlerA, handlerB))
+	s, _ := New()
+
+	// middleware
+	s.Use(router.MiddleFunc(middleA))
+	s.Use(router.MiddleFunc(middleB))
+
+	// routes
 	s.Add("/a", funcA).Methods("GET")
 	s.Add("/b", funcB).Methods("GET")
 

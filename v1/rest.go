@@ -24,7 +24,7 @@ import (
 type Service struct {
 	router.Router
 
-	pline   *Pipeline
+	dflt    router.Handler
 	log     *slog.Logger
 	verbose bool
 	debug   bool
@@ -41,7 +41,7 @@ func New(opts ...Option) (*Service, error) {
 
 	s := &Service{
 		Router:  router.New(),
-		pline:   conf.Pipeline,
+		dflt:    conf.Default,
 		log:     ext.Coalesce(conf.Logger, slog.Default()),
 		verbose: conf.Verbose,
 		debug:   conf.Debug,
@@ -58,7 +58,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var err error
 
 	method, rcname := resource((*router.Request)(req))
-	log := s.log.With("method", method, "url", rcname)
+	log := s.log.With("method", method, "resource", rcname)
 	start := time.Now()
 	defer func() {
 		if err := recover(); err != nil {
@@ -105,34 +105,30 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var (
 		rrq *router.Request
 		cxt router.Context
-		hdl Handler
+		hdl router.Handler
 	)
 	route, match, err := s.Router.Find((*router.Request)(req))
 	if err != nil {
-		log.With("because", err).Error("Could not look up route")
+		log.With("because", err).Error("Error finding route")
 		rrq = (*router.Request)(req)
-		hdl = HandlerFunc(s.handle500)
+		hdl = first(s.dflt, s.handle500)
 	} else if route == nil {
 		log.Error("Route not found")
 		rrq = (*router.Request)(req)
-		hdl = HandlerFunc(s.handle404)
+		hdl = first(s.dflt, s.handle404)
 	} else {
 		rrq = (*router.Request)((*http.Request)(req).WithContext(router.NewMatchContext(req.Context(), match)))
 		cxt = route.Context(match)
 		hdl = s.handler(route)
 	}
-	if s.pline != nil {
-		rsp, err = s.pline.With(hdl).Handle(rrq, cxt)
-	} else {
-		rsp, err = hdl.Handle(rrq, cxt, nil)
-	}
+
+	rsp, err = hdl(rrq, cxt)
 	if err != nil {
 		log.With("because", err).Error("Handler failed")
 		return
 	}
-
 	if rsp == nil {
-		w.WriteHeader(http.StatusOK) // no response is an empty 200
+		w.WriteHeader(http.StatusOK) // nil response is an empty 200
 		return
 	}
 	h := w.Header()
@@ -182,15 +178,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *Service) handler(route *router.Route) Handler {
-	return HandlerFunc(func(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
+func (s *Service) handler(route *router.Route) router.Handler {
+	return router.Handler(func(req *router.Request, cxt router.Context) (*router.Response, error) {
 		method, rcname := resource((*router.Request)(req))
-		log := s.log.With("method", method, "url", rcname)
+		log := s.log.With("method", method, "resource", rcname)
 		if s.verbose {
 			log.Info(req.OriginAddr())
-		}
-		if next.Len() > 0 {
-			return next.Handle(req, cxt)
 		}
 
 		rsp, err := route.Handle(req, cxt)
@@ -214,11 +207,21 @@ var (
 	err500 = errors.Errorf(http.StatusInternalServerError, "Internal server error")
 )
 
-func (s *Service) handle404(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
+func (s *Service) handle404(req *router.Request, cxt router.Context) (*router.Response, error) {
 	return err404.Response(), nil
 }
-func (s *Service) handle500(req *router.Request, cxt router.Context, next *Pipeline) (*router.Response, error) {
+func (s *Service) handle500(req *router.Request, cxt router.Context) (*router.Response, error) {
 	return err500.Response(), nil
+}
+
+// Take the first valid handler
+func first(h ...router.Handler) router.Handler {
+	for _, e := range h {
+		if e != nil {
+			return e
+		}
+	}
+	return nil
 }
 
 // Format a resource name
