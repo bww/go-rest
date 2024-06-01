@@ -13,7 +13,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/bww/go-rest/v1/errors"
+	"github.com/bww/go-rest/v2/errors"
 
 	"github.com/bww/go-metrics/v1"
 	"github.com/bww/go-router/v2"
