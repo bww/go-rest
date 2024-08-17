@@ -4,7 +4,7 @@ go 1.22.3
 
 require (
 	github.com/bww/go-metrics v0.1.0
-	github.com/bww/go-router/v2 v2.2.0
+	github.com/bww/go-router/v2 v2.4.2
 	github.com/bww/go-util v1.38.0
 	github.com/bww/go-validate v1.10.0
 	github.com/gorilla/schema v1.3.0
