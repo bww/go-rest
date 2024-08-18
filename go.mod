@@ -7,7 +7,7 @@ require (
 	github.com/bww/go-router/v2 v2.4.3
 	github.com/bww/go-util v1.38.0
 	github.com/bww/go-validate v1.10.0
-	github.com/gorilla/schema v1.3.0
+	github.com/gorilla/schema v1.4.1
 	github.com/stretchr/testify v1.9.0
 )
 
