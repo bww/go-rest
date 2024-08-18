@@ -95,7 +95,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				dump.WriteString(text.Indent(string(data.Bytes()), "  > "))
 				dump.WriteString("\n")
 			}
-			req.Body = ioutil.NopCloser(data)
+			req.Body = io.NopCloser(data)
 		} else if mtype != "" {
 			dump.WriteString(text.Indent("[binary data]", "  > "))
 			dump.WriteString("\n")
