@@ -1,9 +1,13 @@
 package response
 
-import "net/http"
+import (
+	"html/template"
+	"net/http"
+)
 
 type Config struct {
 	Header http.Header
+	Funcs  template.FuncMap
 }
 
 func (c Config) WithOptions(opts []Option) Config {
@@ -34,5 +38,12 @@ func WithHeaders(h map[string]string) Option {
 			c.Header.Set(k, v)
 		}
 		return c
+	}
+}
+
+func WithFuncs(f template.FuncMap) Option {
+	return func(conf Config) Config {
+		conf.Funcs = f
+		return conf
 	}
 }
