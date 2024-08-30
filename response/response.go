@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	resterrs "github.com/bww/go-rest/v2/errors"
 	"github.com/bww/go-router/v2"
 	"github.com/bww/go-router/v2/entity"
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -67,6 +68,28 @@ func Redirect(dest string, opts ...Option) *router.Response {
 	return rsp
 }
 
+// Produce a successful 200 response with text entity content of the specified type.
+func Text(ctype, text string, opts ...Option) (*router.Response, error) {
+	conf := Config{}.WithOptions(opts)
+	rsp := router.NewResponse(http.StatusOK)
+	// start with the provided header, if any
+	if len(conf.Header) > 0 {
+		rsp.Header = conf.Header
+	}
+	// setting the body will update the content type
+	if text != "" {
+		ent, err := entity.NewString(ctype, text)
+		if err != nil {
+			return nil, resterrs.New(http.StatusInternalServerError, "Could not create text entity", err)
+		}
+		_, err = rsp.SetEntity(ent)
+		if err != nil {
+			return nil, resterrs.New(http.StatusInternalServerError, "Could not set text response entity", err)
+		}
+	}
+	return rsp, nil
+}
+
 // Produce a successful 200 response with HTML entity content. The template string is expected
 // to use the Go template (HTML variant) format, and it will be evaluated with the provided
 // context value. The result of this evaluation is the response entity.
@@ -94,7 +117,7 @@ func renderHTML(fstr string, data interface{}, cache *lru.Cache[string, *templat
 		}
 		tmpl, err = tmpl.Parse(fstr)
 		if err != nil {
-			return nil, hit, err
+			return nil, hit, resterrs.New(http.StatusInternalServerError, "Could not parse HTML template", err)
 		}
 	}
 	if cache != nil {
@@ -104,11 +127,11 @@ func renderHTML(fstr string, data interface{}, cache *lru.Cache[string, *templat
 	body := &bytes.Buffer{}
 	err = tmpl.Execute(body, data)
 	if err != nil {
-		return nil, hit, fmt.Errorf("Could not execute template: %w", err)
+		return nil, hit, resterrs.New(http.StatusInternalServerError, "Could not execute HTML template", err)
 	}
 	ent, err := entity.New("text/html", body)
 	if err != nil {
-		return nil, hit, fmt.Errorf("Could not create entity: %w", err)
+		return nil, hit, resterrs.New(http.StatusInternalServerError, "Could not create HTML entity", err)
 	}
 
 	rsp := router.NewResponse(http.StatusOK)
@@ -119,7 +142,7 @@ func renderHTML(fstr string, data interface{}, cache *lru.Cache[string, *templat
 	// setting the body will update the content type header
 	_, err = rsp.SetEntity(ent)
 	if err != nil {
-		panic(fmt.Errorf("Could not set response entity: %w", err))
+		return nil, hit, resterrs.New(http.StatusInternalServerError, "Could not set HTML response entity", err)
 	}
 
 	return rsp, hit, nil
