@@ -37,28 +37,27 @@ func init() {
 	}
 }
 
-// Produce a successful 200 response, optionally with a payload, which will be marshaled to JSON
+// Take the first valid status
+func statusOr(status, or int) int {
+	if status > 0 {
+		return status
+	} else {
+		return or
+	}
+}
+
+// Produce a successful response, optionally including a payload, which will be marshaled
+// to JSON. The status code used is 200 unless otherwise specified via an option.
+//
+// Deprecated: This method has been deprecated in favor of JSON(), which it simply calls.
 func Success(body interface{}, opts ...Option) *router.Response {
-	conf := Config{}.WithOptions(opts)
-	rsp := router.NewResponse(http.StatusOK)
-	// start with the provided header, if any
-	if len(conf.Header) > 0 {
-		rsp.Header = conf.Header
-	}
-	// setting the body will update the content type
-	if body != nil {
-		_, err := rsp.SetJSON(body)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return rsp
+	return JSON(body, opts...)
 }
 
 // Produce a 302/Found redirect response
 func Redirect(dest string, opts ...Option) *router.Response {
 	conf := Config{}.WithOptions(opts)
-	rsp := router.NewResponse(http.StatusFound)
+	rsp := router.NewResponse(statusOr(conf.Status, http.StatusFound))
 	// start with the provided header, if any
 	if len(conf.Header) > 0 {
 		rsp.Header = conf.Header
@@ -68,10 +67,11 @@ func Redirect(dest string, opts ...Option) *router.Response {
 	return rsp
 }
 
-// Produce a successful 200 response with text entity content of the specified type.
+// Produce a successful response with a text entity. The status code used is 200 unless
+// otherwise specified via an option.
 func Text(ctype, text string, opts ...Option) (*router.Response, error) {
 	conf := Config{}.WithOptions(opts)
-	rsp := router.NewResponse(http.StatusOK)
+	rsp := router.NewResponse(statusOr(conf.Status, http.StatusOK))
 	// start with the provided header, if any
 	if len(conf.Header) > 0 {
 		rsp.Header = conf.Header
@@ -88,6 +88,25 @@ func Text(ctype, text string, opts ...Option) (*router.Response, error) {
 		}
 	}
 	return rsp, nil
+}
+
+// Produce a successful response, optionally including a payload, which will be marshaled
+// to JSON. The status code used is 200 unless otherwise specified via an option.
+func JSON(body interface{}, opts ...Option) *router.Response {
+	conf := Config{}.WithOptions(opts)
+	rsp := router.NewResponse(statusOr(conf.Status, http.StatusOK))
+	// start with the provided header, if any
+	if len(conf.Header) > 0 {
+		rsp.Header = conf.Header
+	}
+	// setting the body will update the content type
+	if body != nil {
+		_, err := rsp.SetJSON(body)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return rsp
 }
 
 // Produce a successful 200 response with HTML entity content. The template string is expected
@@ -134,7 +153,7 @@ func renderHTML(fstr string, data interface{}, cache *lru.Cache[string, *templat
 		return nil, hit, resterrs.New(http.StatusInternalServerError, "Could not create HTML entity", err)
 	}
 
-	rsp := router.NewResponse(http.StatusOK)
+	rsp := router.NewResponse(statusOr(conf.Status, http.StatusOK))
 	// set explicit provided headers first, if any
 	if len(conf.Header) > 0 {
 		rsp.Header = conf.Header

@@ -6,6 +6,7 @@ import (
 )
 
 type Config struct {
+	Status int
 	Header http.Header
 	Funcs  template.FuncMap
 }
@@ -18,6 +19,13 @@ func (c Config) WithOptions(opts []Option) Config {
 }
 
 type Option func(Config) Config
+
+func WithStatus(s int) Option {
+	return func(c Config) Config {
+		c.Status = s
+		return c
+	}
+}
 
 func WithHeader(k, v string) Option {
 	return func(c Config) Config {
