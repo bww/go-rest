@@ -7,12 +7,21 @@ import (
 
 	"github.com/bww/go-router/v2"
 	"github.com/bww/go-validate/v1"
+	"github.com/google/uuid"
 )
 
 const (
 	helpKey        = "help"
 	fieldErrorsKey = "field_errors"
 )
+
+func mkref() string {
+	ref, err := uuid.NewRandom()
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("err-%v", ref)
+}
 
 type Code string
 
@@ -27,6 +36,7 @@ type Error struct {
 	Message string                 `json:"message,omitempty"`
 	Cause   error                  `json:"-"`
 	Detail  map[string]interface{} `json:"detail,omitempty"`
+	Ref     string                 `json:"ref,omitempty"`
 }
 
 func New(s int, m string, c error) *Error {
@@ -34,6 +44,7 @@ func New(s int, m string, c error) *Error {
 		Status:  s,
 		Message: m,
 		Cause:   c,
+		Ref:     mkref(),
 	}
 }
 
@@ -60,6 +71,7 @@ func Errorf(s int, f string, a ...interface{}) *Error {
 	return &Error{
 		Status:  s,
 		Message: fmt.Sprintf(f, a...),
+		Ref:     mkref(),
 	}
 }
 
@@ -69,15 +81,23 @@ func (e *Error) Copy() *Error {
 }
 
 func (e *Error) Error() string {
-	return e.Message
+	if e.Ref != "" {
+		return fmt.Sprintf("%s (ref: %s)", e.Message, e.Ref)
+	} else {
+		return e.Message
+	}
 }
 
 func (e *Error) Unwrap() error {
 	return e.Cause
 }
 
+func (e *Error) Reference() string {
+	return e.Ref
+}
+
 func (e *Error) String() string {
-	return fmt.Sprintf("%d %s: %v", e.Status, http.StatusText(e.Status), e.Message)
+	return fmt.Sprintf("%d %s: %v", e.Status, http.StatusText(e.Status), e.Error())
 }
 
 func (e *Error) SetCause(c error) *Error {
