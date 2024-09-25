@@ -81,11 +81,7 @@ func (e *Error) Copy() *Error {
 }
 
 func (e *Error) Error() string {
-	if e.Ref != "" {
-		return fmt.Sprintf("%s (ref: %s)", e.Message, e.Ref)
-	} else {
-		return e.Message
-	}
+	return e.Message
 }
 
 func (e *Error) Unwrap() error {
