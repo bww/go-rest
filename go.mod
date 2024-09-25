@@ -8,7 +8,7 @@ require (
 	github.com/bww/go-util v1.42.0
 	github.com/bww/go-validate v1.10.0
 	github.com/google/uuid v1.3.0
-	github.com/gorilla/schema v1.3.0
+	github.com/gorilla/schema v1.4.1
 	github.com/hashicorp/golang-lru/v2 v2.0.2
 	github.com/stretchr/testify v1.9.0
 )
