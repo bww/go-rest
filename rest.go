@@ -90,7 +90,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			data := &bytes.Buffer{}
 			_, err := io.Copy(data, req.Body)
 			if err != nil {
-				log.With("because", err).Error("Could not read request entity")
+				errlog(log, err).Error("Could not read request entity")
 			} else {
 				dump.WriteString(text.Indent(string(data.Bytes()), "  > "))
 				dump.WriteString("\n")
@@ -109,7 +109,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	)
 	route, match, err := s.Router.Find((*router.Request)(req))
 	if err != nil {
-		log.With("because", err).Error("Error finding route")
+		errlog(log, err).Error("Error finding route")
 		rrq = (*router.Request)(req)
 		hdl = first(s.dflt, s.handle500)
 	} else if route == nil {
@@ -124,7 +124,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	rsp, err = hdl(rrq, cxt)
 	if err != nil {
-		log.With("because", err).Error("Handler failed")
+		errlog(log, err).Error("Handler failed")
 		return
 	}
 	if rsp == nil {
@@ -155,7 +155,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				data := &bytes.Buffer{}
 				_, err := io.Copy(data, entity)
 				if err != nil {
-					log.With("because", err).Error("Could not read response entity")
+					errlog(log, err).Error("Could not read response entity")
 				} else {
 					dump.WriteString(text.Indent(string(data.Bytes()), "  < "))
 					dump.WriteString("\n")
@@ -168,12 +168,12 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 			_, err := io.Copy(os.Stdout, dump)
 			if err != nil {
-				log.With("because", err).Error("Could not dump request")
+				errlog(log, err).Error("Could not dump request")
 			}
 		}
 		_, err := io.Copy(w, entity)
 		if err != nil {
-			log.With("because", err).Error("Could not write response entity")
+			errlog(log, err).Error("Could not write response entity")
 		}
 	}
 }
@@ -261,6 +261,5 @@ func errlog(log *slog.Logger, err error) *slog.Logger {
 			log = log.With(name, err.Error())
 		}
 	}
-
 	return log
 }
