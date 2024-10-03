@@ -2,7 +2,7 @@ package rest
 
 import (
 	"bytes"
-	syserrs "errors"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,10 +13,11 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/bww/go-rest/v2/errors"
+	resterrs "github.com/bww/go-rest/v2/errors"
 
 	"github.com/bww/go-metrics/v1"
 	"github.com/bww/go-router/v2"
+	errutil "github.com/bww/go-util/v1/errors"
 	"github.com/bww/go-util/v1/ext"
 	"github.com/bww/go-util/v1/text"
 )
@@ -193,8 +194,8 @@ func (s *Service) handler(route *router.Route) router.Handler {
 
 		errlog(log, err).Error(err.Error())
 
-		var rsperr errors.Responder
-		if syserrs.As(err, &rsperr) {
+		var rsperr resterrs.Responder
+		if errors.As(err, &rsperr) {
 			return rsperr.Response(), nil
 		} else {
 			return rsp, err
@@ -203,8 +204,8 @@ func (s *Service) handler(route *router.Route) router.Handler {
 }
 
 var (
-	err404 = errors.Errorf(http.StatusNotFound, "Not found")
-	err500 = errors.Errorf(http.StatusInternalServerError, "Internal server error")
+	err404 = resterrs.Errorf(http.StatusNotFound, "Not found")
+	err500 = resterrs.Errorf(http.StatusInternalServerError, "Internal server error")
 )
 
 func (s *Service) handle404(req *router.Request, cxt router.Context) (*router.Response, error) {
@@ -247,9 +248,15 @@ func resource(req *router.Request) (string, string) {
 
 // Produce a logger for an error
 func errlog(log *slog.Logger, err error) *slog.Logger {
+	if referr, ok := err.(errutil.Referenced); ok {
+		log = log.With("ref", referr.Reference())
+		err = referr.Unwrap()
+	} else if ref := errutil.Refstr(err); ref != "" {
+		log = log.With("ref", ref)
+	}
 	for n := 0; err != nil; n++ {
-		var resterr *errors.Error
-		if !syserrs.As(err, &resterr) {
+		var resterr *resterrs.Error
+		if !errors.As(err, &resterr) {
 			break
 		}
 		err = resterr.Unwrap()
