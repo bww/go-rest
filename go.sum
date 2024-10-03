@@ -633,6 +633,8 @@ github.com/bww/go-router/v2 v2.4.3 h1:gh82LcMPd9+7V3HkMl3hrm4XHatsnemZuUHl7LOHYW
 github.com/bww/go-router/v2 v2.4.3/go.mod h1:9i02k2UmbbUhwEiHTd6RHpImarVhbqfOPZxrLZMAkJI=
 github.com/bww/go-util v1.43.0 h1:b8M689m+f36+hvnTJNDhz48zFqT1Qi7JEI3oS2Dt7ys=
 github.com/bww/go-util v1.43.0/go.mod h1:c418EBQ2i2EY5p+KVNSWn2F9HRGOpY9ctkp22pXD8es=
+github.com/bww/go-util v1.43.1 h1:Z2jp9k9dAnfMOhvUZ1gsEYYYQPHN/q0EiEyhkGntK1Q=
+github.com/bww/go-util v1.43.1/go.mod h1:c418EBQ2i2EY5p+KVNSWn2F9HRGOpY9ctkp22pXD8es=
 github.com/bww/go-validate v1.10.0 h1:z+r337OQszC8Zcay6/cjCK0orMKdSoUKCYMWUm/R3XQ=
 github.com/bww/go-validate v1.10.0/go.mod h1:5omXeE8tHK0enoSOvaG2y/UcaMdMDivZd7JcW31bOKo=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
