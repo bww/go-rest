@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -46,10 +47,12 @@ func statusOr(status, or int) int {
 	}
 }
 
-// Produce a successful response, optionally including a payload, which will be marshaled
-// to JSON. The status code used is 200 unless otherwise specified via an option.
+// Produce a successful response, optionally including a payload, which will be
+// marshaled to JSON. The status code used is 200 unless otherwise specified via
+// an option.
 //
-// Deprecated: This method has been deprecated in favor of JSON(), which it simply calls.
+// Deprecated: This method has been deprecated in favor of JSON(), which it
+// simply calls.
 func Success(body interface{}, opts ...Option) *router.Response {
 	return JSON(body, opts...)
 }
@@ -67,8 +70,8 @@ func Redirect(dest string, opts ...Option) *router.Response {
 	return rsp
 }
 
-// Produce a successful response with a text entity. The status code used is 200 unless
-// otherwise specified via an option.
+// Produce a successful response with a text entity. The status code used is 200
+// unless otherwise specified via an option.
 func Text(ctype, text string, opts ...Option) (*router.Response, error) {
 	conf := Config{}.WithOptions(opts)
 	rsp := router.NewResponse(statusOr(conf.Status, http.StatusOK))
@@ -80,7 +83,7 @@ func Text(ctype, text string, opts ...Option) (*router.Response, error) {
 	if text != "" {
 		ent, err := entity.NewString(ctype, text)
 		if err != nil {
-			return nil, resterrs.New(http.StatusInternalServerError, "Could not create text entity", err)
+			return nil, resterrs.New(http.StatusInternalServerError, "Could not create text response entity", err)
 		}
 		_, err = rsp.SetEntity(ent)
 		if err != nil {
@@ -90,8 +93,9 @@ func Text(ctype, text string, opts ...Option) (*router.Response, error) {
 	return rsp, nil
 }
 
-// Produce a successful response, optionally including a payload, which will be marshaled
-// to JSON. The status code used is 200 unless otherwise specified via an option.
+// Produce a successful response, optionally including a payload, which will be
+// marshaled to JSON. The status code used is 200 unless otherwise specified via
+// an option.
 func JSON(body interface{}, opts ...Option) *router.Response {
 	conf := Config{}.WithOptions(opts)
 	rsp := router.NewResponse(statusOr(conf.Status, http.StatusOK))
@@ -109,15 +113,17 @@ func JSON(body interface{}, opts ...Option) *router.Response {
 	return rsp
 }
 
-// Produce a successful 200 response with HTML entity content. The template string is expected
-// to use the Go template (HTML variant) format, and it will be evaluated with the provided
-// context value. The result of this evaluation is the response entity.
+// Produce a successful 200 response with HTML entity content. The template
+// string is expected to use the Go template (HTML variant) format, and it will
+// be evaluated with the provided context value. The result of this evaluation
+// is the response entity.
 func HTML(fstr string, data interface{}, opts ...Option) (*router.Response, error) {
 	rsp, _, err := renderHTML(fstr, data, tmplcache, opts...)
 	return rsp, err
 }
 
-// Render an HTML response: this is decomposed in order to make caching more testable
+// Render an HTML response: this is decomposed in order to make caching more
+// testable
 func renderHTML(fstr string, data interface{}, cache *lru.Cache[string, *template.Template], opts ...Option) (*router.Response, bool, error) {
 	conf := Config{}.WithOptions(opts)
 	var err error
@@ -165,4 +171,50 @@ func renderHTML(fstr string, data interface{}, cache *lru.Cache[string, *templat
 	}
 
 	return rsp, hit, nil
+}
+
+// Produce a successful response with a byte entity. The status code used is 200
+// unless otherwise specified via an option.
+func Bytes(ctype string, data []byte, opts ...Option) (*router.Response, error) {
+	conf := Config{}.WithOptions(opts)
+	rsp := router.NewResponse(statusOr(conf.Status, http.StatusOK))
+	// start with the provided header, if any
+	if len(conf.Header) > 0 {
+		rsp.Header = conf.Header
+	}
+	// setting the body will update the content type
+	if len(data) > 0 {
+		ent, err := entity.NewBytes(ctype, data)
+		if err != nil {
+			return nil, resterrs.New(http.StatusInternalServerError, "Could not create bytes response entity", err)
+		}
+		_, err = rsp.SetEntity(ent)
+		if err != nil {
+			return nil, resterrs.New(http.StatusInternalServerError, "Could not set bytes response entity", err)
+		}
+	}
+	return rsp, nil
+}
+
+// Produce a successful response with a reader entity. The status code used is
+// 200 unless otherwise specified via an option.
+func Reader(ctype string, rdr io.Reader, opts ...Option) (*router.Response, error) {
+	conf := Config{}.WithOptions(opts)
+	rsp := router.NewResponse(statusOr(conf.Status, http.StatusOK))
+	// start with the provided header, if any
+	if len(conf.Header) > 0 {
+		rsp.Header = conf.Header
+	}
+	// setting the body will update the content type
+	if rdr != nil {
+		ent, err := entity.New(ctype, rdr)
+		if err != nil {
+			return nil, resterrs.New(http.StatusInternalServerError, "Could not create stream response entity", err)
+		}
+		_, err = rsp.SetEntity(ent)
+		if err != nil {
+			return nil, resterrs.New(http.StatusInternalServerError, "Could not set stream response entity", err)
+		}
+	}
+	return rsp, nil
 }
