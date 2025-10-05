@@ -2,6 +2,8 @@ module github.com/bww/go-rest/v2
 
 go 1.23.0
 
+replace github.com/bww/go-router/v2 => ../go-router
+
 require (
 	github.com/bww/go-metrics v0.1.0
 	github.com/bww/go-router/v2 v2.4.3

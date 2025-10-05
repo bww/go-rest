@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -83,7 +83,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 		data := &bytes.Buffer{}
 		req.Header.Write(data)
-		dump.WriteString(text.Indent(string(data.Bytes()), "  > "))
+		dump.WriteString(text.Indent(data.String(), "  > "))
 		dump.WriteString("\n")
 
 		mtype := req.Header.Get("Content-Type")
@@ -93,7 +93,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				errlog(log, err).Error("Could not read request entity")
 			} else {
-				dump.WriteString(text.Indent(string(data.Bytes()), "  > "))
+				dump.WriteString(text.Indent(data.String(), "  > "))
 				dump.WriteString("\n")
 			}
 			req.Body = io.NopCloser(data)
@@ -132,25 +132,34 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusOK) // nil response is an empty 200
 		return
 	}
-	h := w.Header()
-	for k, v := range rsp.Header {
-		h[k] = v
-	}
 
+	maps.Copy(w.Header(), rsp.Header)
 	w.WriteHeader(rsp.Status)
 
 	if s.debug {
-		dump.WriteString(fmt.Sprintf("  *\n  < %d / %s\n", rsp.Status, http.StatusText(rsp.Status)))
+		fmt.Fprintf(dump, "  *\n  < %d / %s\n", rsp.Status, http.StatusText(rsp.Status))
+		data := &bytes.Buffer{}
+		rsp.Header.Write(data)
+		dump.WriteString(text.Indent(data.String(), "  < "))
+		dump.WriteString("\n")
+
+	}
+
+	if dump != nil && isStreaming(rsp) {
+		// NOTE: this is a very specific workaround for SSE responses, which
+		// are not generally compatible with the buffered approach we take to
+		// debugging responses.
+		dump.WriteString("  ~ <STREAMING DATA OMITTED>\n")
+		_, err := io.Copy(os.Stdout, dump)
+		if err != nil {
+			errlog(log, err).Error("Could not dump request")
+		}
+		dump = nil // don't attempt to dump the entity
 	}
 
 	if entity := rsp.Entity; entity != nil {
 		defer entity.Close()
 		if dump != nil {
-			data := &bytes.Buffer{}
-			rsp.Header.Write(data)
-			dump.WriteString(text.Indent(string(data.Bytes()), "  < "))
-			dump.WriteString("\n")
-
 			mtype := rsp.Header.Get("Content-Type")
 			if !isMimetypeBinary(mtype) {
 				data := &bytes.Buffer{}
@@ -158,10 +167,10 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				if err != nil {
 					errlog(log, err).Error("Could not read response entity")
 				} else {
-					dump.WriteString(text.Indent(string(data.Bytes()), "  < "))
+					dump.WriteString(text.Indent(data.String(), "  < "))
 					dump.WriteString("\n")
 				}
-				entity = ioutil.NopCloser(data)
+				entity = io.NopCloser(data)
 			} else if mtype != "" {
 				dump.WriteString(text.Indent("[binary data]", "  < "))
 				dump.WriteString("\n")
@@ -213,6 +222,19 @@ func (s *Service) handle404(req *router.Request, cxt router.Context) (*router.Re
 }
 func (s *Service) handle500(req *router.Request, cxt router.Context) (*router.Response, error) {
 	return err500.Response(), nil
+}
+
+// Streaming content types
+var contentTypeStreaming = map[string]struct{}{
+	"text/event-stream": {},
+}
+
+func isStreaming(rsp *router.Response) bool {
+	if rsp.Streaming {
+		return true
+	}
+	_, ok := contentTypeStreaming[rsp.Header.Get("Content-Type")]
+	return ok
 }
 
 // Take the first valid handler
