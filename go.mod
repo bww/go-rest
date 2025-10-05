@@ -2,11 +2,10 @@ module github.com/bww/go-rest/v2
 
 go 1.23.0
 
-replace github.com/bww/go-router/v2 => ../go-router
 
 require (
 	github.com/bww/go-metrics v0.1.0
-	github.com/bww/go-router/v2 v2.4.3
+	github.com/bww/go-router/v2 v2.6.0
 	github.com/bww/go-util v1.43.1
 	github.com/bww/go-validate v1.10.0
 	github.com/google/uuid v1.3.0
