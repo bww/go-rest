@@ -2,7 +2,6 @@ module github.com/bww/go-rest/v2
 
 go 1.23.0
 
-
 require (
 	github.com/bww/go-metrics v0.1.0
 	github.com/bww/go-router/v2 v2.6.0

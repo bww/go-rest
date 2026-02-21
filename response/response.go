@@ -218,3 +218,17 @@ func Reader(ctype string, rdr io.Reader, opts ...Option) (*router.Response, erro
 	}
 	return rsp, nil
 }
+
+// Produce a response by prxying the provided response.
+func Proxy(pxy *http.Response, opts ...Option) (*router.Response, error) {
+	conf := Config{}.WithOptions(opts)
+	rsp := router.NewResponse(pxy.StatusCode)
+	rsp.Entity = pxy.Body
+	rsp.Header = rsp.Header.Clone()
+	for k, v := range conf.Header {
+		for _, e := range v {
+			rsp.Header.Add(k, e)
+		}
+	}
+	return rsp, nil
+}

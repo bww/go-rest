@@ -49,6 +49,13 @@ func WithHeaders(h map[string]string) Option {
 	}
 }
 
+func WithHTTPHeader(h http.Header) Option {
+	return func(c Config) Config {
+		c.Header = h.Clone()
+		return c
+	}
+}
+
 func WithFuncs(f template.FuncMap) Option {
 	return func(conf Config) Config {
 		conf.Funcs = f

@@ -87,7 +87,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		dump.WriteString("\n")
 
 		mtype := req.Header.Get("Content-Type")
-		if !isMimetypeBinary(mtype) {
+		if isMimetypePrintable(mtype) {
 			data := &bytes.Buffer{}
 			_, err := io.Copy(data, req.Body)
 			if err != nil {
@@ -161,7 +161,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		defer entity.Close()
 		if dump != nil {
 			mtype := rsp.Header.Get("Content-Type")
-			if !isMimetypeBinary(mtype) {
+			if isMimetypePrintable(mtype) {
 				data := &bytes.Buffer{}
 				_, err := io.Copy(data, entity)
 				if err != nil {

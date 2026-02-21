@@ -5,18 +5,21 @@ import (
 	"strings"
 )
 
-func isMimetypeBinary(t string) bool {
+func isMimetypePrintable(t string) bool {
 	m, p, err := mime.ParseMediaType(t)
 	if err != nil {
-		return true
+		return false // assume not
 	}
-	if m == "application/json" {
-		return false
-	} else if strings.HasPrefix(m, "text/") {
-		return false
-	} else if _, ok := p["charset"]; ok {
-		return false
-	} else {
+	switch {
+	case m == "application/json":
 		return true
+	case m == "application/x-www-form-urlencoded":
+		return true
+	case strings.HasPrefix(m, "text/"):
+		return true
+	case p["charset"] != "": // if a charset is specified, it's printable
+		return true
+	default:
+		return false
 	}
 }
