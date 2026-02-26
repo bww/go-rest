@@ -13,12 +13,12 @@ import (
 	"runtime/debug"
 	"time"
 
-	resterrs "github.com/bww/go-rest/v2/errors"
-
 	"github.com/bww/go-metrics/v1"
+	resterrs "github.com/bww/go-rest/v2/errors"
 	"github.com/bww/go-router/v2"
 	errutil "github.com/bww/go-util/v1/errors"
 	"github.com/bww/go-util/v1/ext"
+	httputil "github.com/bww/go-util/v1/net/http"
 	"github.com/bww/go-util/v1/text"
 )
 
@@ -87,7 +87,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		dump.WriteString("\n")
 
 		mtype := req.Header.Get("Content-Type")
-		if isMimetypePrintable(mtype) {
+		if httputil.IsMimetypePrintable(mtype) {
 			data := &bytes.Buffer{}
 			_, err := io.Copy(data, req.Body)
 			if err != nil {
@@ -161,7 +161,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		defer entity.Close()
 		if dump != nil {
 			mtype := rsp.Header.Get("Content-Type")
-			if isMimetypePrintable(mtype) {
+			if httputil.IsMimetypePrintable(mtype) {
 				data := &bytes.Buffer{}
 				_, err := io.Copy(data, entity)
 				if err != nil {
