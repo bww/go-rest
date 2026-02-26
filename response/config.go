@@ -37,19 +37,7 @@ func WithHeader(k, v string) Option {
 	}
 }
 
-func WithHeaders(h map[string]string) Option {
-	return func(c Config) Config {
-		if c.Header == nil {
-			c.Header = make(http.Header)
-		}
-		for k, v := range h {
-			c.Header.Set(k, v)
-		}
-		return c
-	}
-}
-
-func WithHTTPHeader(h http.Header) Option {
+func WithHeaders(h http.Header) Option {
 	return func(c Config) Config {
 		c.Header = h.Clone()
 		return c
